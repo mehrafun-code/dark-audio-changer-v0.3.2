@@ -16,8 +16,22 @@ _model = None
 def get_model():
     global _model
     if _model is None:
-        _model = WhisperModel(config.WHISPER_MODEL, compute_type="int8")
+        _model = WhisperModel(config.WHISPER_MODEL, device=config.WHISPER_DEVICE, compute_type="int8")
     return _model
+
+
+def transcribe(wav):
+    """English speech -> segments. GPU/CUDA error aaye to CPU par fallback."""
+    global _model
+    try:
+        segs, _ = get_model().transcribe(str(wav), language="en", vad_filter=True)
+        return list(segs)
+    except Exception as e:
+        if config.WHISPER_DEVICE != "cpu" and any(k in str(e).lower() for k in ("cublas", "cuda", "cudnn")):
+            _model = WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8")
+            segs, _ = _model.transcribe(str(wav), language="en", vad_filter=True)
+            return list(segs)
+        raise
 
 
 def tts(text: str, voice: str, out: Path):
@@ -32,7 +46,7 @@ def process(video: Path, workdir: Path, progress):
     extract_audio(video, wav)
 
     progress("Speech-to-text (English)...", 15)
-    segs, _ = get_model().transcribe(str(wav), language="en", vad_filter=True)
+    segs = transcribe(wav)
     segments = [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in segs if s.text.strip()]
     if not segments:
         raise RuntimeError("Video me koi speech nahi mili.")

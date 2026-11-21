@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.3.3 (build 6)
+- Fix: `cublas64_12.dll is not found` error. Whisper ab default CPU par chalta hai (`WHISPER_DEVICE=cpu`), GPU error aaye to apne aap CPU par fallback
+
 ## 0.3.2 (build 5)
 - **Windows ready-made app (installer nahi)**: GitHub Actions `Build Windows App` PyInstaller se `DarkAudioChanger.exe` wala zip banata hai (FFmpeg andar shamil)
 - Launcher exe-safe: log file, error popup, ffmpeg console windows band
