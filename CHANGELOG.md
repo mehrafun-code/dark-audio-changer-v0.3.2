@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.4 (build 7)
+- Fix: Google translate "Too many requests" error. Ab har line ke beech gap, rate-limit par ruk kar dobara try. Phir bhi fail ho to English line rehti hai jise editor me theek kar sakte ho
+- **Manual voice chunna**: upload ke time "Auto / Sab Male / Sab Female"
+- **Voice Editor**: dub se pehle har line ka Male/Female chuno aur Hindi text edit karo (Sab Male, Sab Female, Auto wapas buttons)
+- Dub ke baad bhi galat voice theek karke **DUBARA BANAO** (pehle ki bani awaaz cache hoti hai, isliye jaldi hota hai)
+- Time button par click karke video us line par sun sakte ho
+
 ## 0.3.3 (build 6)
 - Fix: `cublas64_12.dll is not found` error. Whisper ab default CPU par chalta hai (`WHISPER_DEVICE=cpu`), GPU error aaye to apne aap CPU par fallback
 

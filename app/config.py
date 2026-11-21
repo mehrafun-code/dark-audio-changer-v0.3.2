@@ -18,3 +18,5 @@ VOICE_MALE = os.getenv("VOICE_MALE", "hi-IN-MadhurNeural")
 VOICE_FEMALE = os.getenv("VOICE_FEMALE", "hi-IN-SwaraNeural")
 TARGET_LANG = os.getenv("TARGET_LANG", "hi")
 MAX_SPEEDUP = float(os.getenv("MAX_SPEEDUP", "1.5"))
+# Google translate (free fallback) ke beech ka gap, seconds me. Rate-limit se bachne ke liye
+TRANSLATE_DELAY = float(os.getenv("TRANSLATE_DELAY", "0.4"))

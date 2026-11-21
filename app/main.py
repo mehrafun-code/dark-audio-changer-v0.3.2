@@ -6,13 +6,14 @@ import sys
 import uuid
 from pathlib import Path
 
-from fastapi import BackgroundTasks, FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from . import config
 from .media import parse_range, wav_peaks
-from .pipeline import process
+from .pipeline import analyze, render
 
 app = FastAPI(title="Dark Audio Changer", version=config.VERSION)
 JOBS: dict[str, dict] = {}
@@ -20,14 +21,43 @@ STATIC = Path(__file__).parent / "static"
 PRIVATE = {"output", "input"}
 
 
-def _work(job_id: str, video: Path):
+def _progress(job_id: str):
     def progress(msg, pct):
         JOBS[job_id].update(status="processing", message=msg, progress=pct)
+    return progress
+
+
+def _render_work(job_id: str):
+    j = JOBS[job_id]
     try:
-        out, segs = process(video, config.DATA_DIR / job_id, progress)
-        JOBS[job_id].update(status="done", output=str(out), segments=segs, progress=100, message="Dub taiyar hai.")
+        out, segs = render(Path(j["input"]), config.DATA_DIR / job_id, j["segments"], _progress(job_id))
+        j.update(status="done", output=str(out), segments=segs, progress=100, message="Dub taiyar hai.")
+    except Exception as e:
+        j.update(status="error", message=str(e))
+
+
+def _analyze_work(job_id: str, video: Path, gender_mode: str, review: bool):
+    try:
+        segs = analyze(video, config.DATA_DIR / job_id, _progress(job_id), gender_mode)
+        JOBS[job_id]["segments"] = segs
     except Exception as e:
         JOBS[job_id].update(status="error", message=str(e))
+        return
+    if review:
+        JOBS[job_id].update(status="review", progress=48,
+                            message="Voice check karo, phir DUB BANAO dabao.")
+    else:
+        _render_work(job_id)
+
+
+class SegEdit(BaseModel):
+    id: int
+    gender: str
+    hindi: str
+
+
+class RenderBody(BaseModel):
+    segments: list[SegEdit]
 
 
 def _job(job_id: str) -> dict:
@@ -88,7 +118,10 @@ def version():
 
 
 @app.post("/api/dub")
-async def dub(bg: BackgroundTasks, file: UploadFile = File(...)):
+async def dub(bg: BackgroundTasks, file: UploadFile = File(...),
+              gender_mode: str = Form("auto"), review: str = Form("1")):
+    if gender_mode not in ("auto", "male", "female"):
+        gender_mode = "auto"
     job_id = uuid.uuid4().hex[:12]
     folder = config.DATA_DIR / job_id
     folder.mkdir(parents=True, exist_ok=True)
@@ -96,8 +129,25 @@ async def dub(bg: BackgroundTasks, file: UploadFile = File(...)):
     with open(video, "wb") as f:
         shutil.copyfileobj(file.file, f)
     JOBS[job_id] = {"status": "queued", "message": "Queue me hai", "progress": 0, "input": str(video)}
-    bg.add_task(_work, job_id, video)
+    bg.add_task(_analyze_work, job_id, video, gender_mode, review == "1")
     return {"job_id": job_id}
+
+
+@app.post("/api/render/{job_id}")
+def rerender(job_id: str, body: RenderBody, bg: BackgroundTasks):
+    """Review/edit ke baad (ya dub ke baad dobara) awaaz banao."""
+    j = _job(job_id)
+    if j.get("status") not in ("review", "done"):
+        raise HTTPException(409, "Abhi kaam chal raha hai")
+    edits = {e.id: e for e in body.segments}
+    for seg in j["segments"]:
+        e = edits.get(seg["id"])
+        if e:
+            seg["gender"] = "female" if e.gender == "female" else "male"
+            seg["hindi"] = e.hindi
+    j.update(status="processing", progress=50, message="Awaaz dobara ban rahi hai...")
+    bg.add_task(_render_work, job_id)
+    return {"ok": True}
 
 
 @app.get("/api/status/{job_id}")
@@ -107,14 +157,15 @@ def status(job_id: str):
 
 @app.get("/api/media/{job_id}/{kind}")
 def media(job_id: str, kind: str, request: Request):
-    j = _done(job_id)
+    j = _job(job_id)
     folder = config.DATA_DIR / job_id
     files = {
         "video": Path(j["input"]),     # original video (original awaaz ke saath)
         "dub": folder / "dub.wav",     # sirf Hindi dub awaaz
         "original": folder / "audio.wav",
-        "final": Path(j["output"]),    # dub wali final video
     }
+    if j.get("output"):
+        files["final"] = Path(j["output"])    # dub wali final video
     path = files.get(kind)
     if not path or not path.exists():
         raise HTTPException(404, "File nahi mili")

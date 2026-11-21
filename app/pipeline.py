@@ -1,4 +1,5 @@
 import asyncio
+import hashlib
 from pathlib import Path
 
 import edge_tts
@@ -38,7 +39,12 @@ def tts(text: str, voice: str, out: Path):
     asyncio.run(edge_tts.Communicate(text, voice).save(str(out)))
 
 
-def process(video: Path, workdir: Path, progress):
+def voice_for(gender: str) -> str:
+    return config.VOICE_FEMALE if gender == "female" else config.VOICE_MALE
+
+
+def analyze(video: Path, workdir: Path, progress, gender_mode: str = "auto"):
+    """Stage 1: audio -> English text -> gender -> Hindi text. Awaaz abhi nahi banti."""
     workdir.mkdir(parents=True, exist_ok=True)
     wav = workdir / "audio.wav"
 
@@ -46,36 +52,52 @@ def process(video: Path, workdir: Path, progress):
     extract_audio(video, wav)
 
     progress("Speech-to-text (English)...", 15)
-    segs = transcribe(wav)
-    segments = [{"start": s.start, "end": s.end, "text": s.text.strip()} for s in segs if s.text.strip()]
+    raw = transcribe(wav)
+    segments = [{"id": i, "start": s.start, "end": s.end, "text": s.text.strip()}
+                for i, s in enumerate(x for x in raw if x.text.strip())]
     if not segments:
         raise RuntimeError("Video me koi speech nahi mili.")
 
-    progress("Male/Female detect kar rahe hain...", 35)
+    progress("Male/Female pehchan...", 35)
     for s in segments:
-        s["gender"] = detect_gender(wav, s["start"], s["end"])
+        if gender_mode in ("male", "female"):
+            s["auto_gender"] = s["gender"] = gender_mode
+        else:
+            s["auto_gender"] = s["gender"] = detect_gender(wav, s["start"], s["end"])
 
     progress("Hindi translation...", 45)
     hindi = translate_all([s["text"] for s in segments])
     for s, h in zip(segments, hindi):
         s["hindi"] = h
+    return segments
 
+
+def render(video: Path, workdir: Path, segments: list, progress):
+    """Stage 2: Hindi text + gender se awaaz banao, mix karo, video me jodo."""
+    wav = workdir / "audio.wav"
     total_ms = int(AudioSegment.from_file(wav).duration_seconds * 1000) + 1000
     mix = AudioSegment.silent(duration=total_ms, frame_rate=24000).set_channels(1)
 
+    n = len(segments)
     for i, s in enumerate(segments):
-        progress(f"Hindi awaaz ban rahi hai ({i+1}/{len(segments)})...", 50 + int(40 * i / len(segments)))
-        voice = config.VOICE_FEMALE if s["gender"] == "female" else config.VOICE_MALE
-        raw = workdir / f"seg{i}.mp3"
-        tts(s["hindi"], voice, raw)
+        progress(f"Hindi awaaz ban rahi hai ({i+1}/{n})...", 50 + int(40 * i / max(n, 1)))
+        text = (s.get("hindi") or "").strip()
+        if not text:
+            continue
+        voice = voice_for(s.get("gender", "male"))
+        key = hashlib.md5(f"{voice}|{text}".encode("utf-8")).hexdigest()[:12]
+        raw = workdir / f"tts_{key}.mp3"
+        if not raw.exists():  # pehle bani hui awaaz dobara use hogi
+            tts(text, voice, raw)
         clip = AudioSegment.from_file(raw)
 
-        nxt = segments[i + 1]["start"] if i + 1 < len(segments) else s["end"] + 3
+        nxt = segments[i + 1]["start"] if i + 1 < n else s["end"] + 3
         slot = max(nxt - s["start"] - 0.1, 0.5) * 1000
         if len(clip) > slot:
             tempo = min(len(clip) / slot, config.MAX_SPEEDUP)
-            fast = workdir / f"seg{i}_fast.mp3"
-            speed_up(raw, fast, tempo)
+            fast = workdir / f"tts_{key}_{tempo:.2f}.mp3"
+            if not fast.exists():
+                speed_up(raw, fast, tempo)
             clip = AudioSegment.from_file(fast)
         mix = mix.overlay(clip, position=int(s["start"] * 1000))
 

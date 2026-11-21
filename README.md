@@ -11,6 +11,9 @@ Python **3.11** chahiye: https://www.python.org/downloads/release/python-3119/ (
 
 > `app/static/index.html` ko seedha double click karke mat kholo. Server ke bina upload aur logo kaam nahi karte.
 
+## Voice Editor
+Upload ke time Auto / Sab Male / Sab Female chuno. "Dub se pehle voice check" ON ho to har line ka gender aur Hindi text badal sakte ho. Dub ke baad galat awaaz lage to editor me theek karke DUBARA BANAO dabao.
+
 ## Preview Studio
 Dub hone ke baad video ke saath: original audio aur Hindi dub ki waveform, timeline (click/drag se seek), awaaz mixer (Original / Dub / Dono) aur live transcript.
 
