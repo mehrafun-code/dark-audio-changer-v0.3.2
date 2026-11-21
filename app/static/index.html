@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dark Audio Changer</title>
+<link rel="icon" type="image/png" href="/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#0a0707; --panel:#150e0c; --panel2:#1d1311; --line:#3a2a1c;
+  --ember:#e8420f; --flame:#ff7a1a; --gold:#e8a62b; --bone:#eadfcf; --dim:#9a8a78; --plasma:#e068a8;
+  --display:"Orbitron","Segoe UI",system-ui,sans-serif;
+  --body:"Rajdhani","Segoe UI",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;min-height:100%}
+body{
+  background:
+    radial-gradient(900px 600px at 18% 30%, rgba(232,66,15,.20), transparent 62%),
+    radial-gradient(700px 500px at 92% 100%, rgba(224,104,168,.10), transparent 60%),
+    var(--void);
+  color:var(--bone); font-family:var(--body); font-size:18px; line-height:1.45; background-attachment:fixed;
+}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:50;
+  background:repeating-linear-gradient(to bottom,rgba(255,255,255,.025) 0 1px,transparent 1px 4px)}
+
+header{display:flex;align-items:center;gap:14px;padding:16px 28px;border-bottom:1px solid var(--line)}
+header img{width:40px;height:40px;object-fit:contain}
+.brand{font-family:var(--display);font-weight:900;font-size:20px;letter-spacing:.14em}
+.brand span{color:var(--flame)}
+.ver{margin-left:auto;font-family:var(--display);font-size:12px;color:var(--dim);border:1px solid var(--line);padding:5px 10px;
+  clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px)}
+
+#filewarn{background:#3a0f08;border-bottom:1px solid var(--ember);color:#ffb9a8;padding:12px 28px;font-weight:600}
+
+main{display:grid;grid-template-columns:minmax(300px,1fr) minmax(340px,520px);gap:48px;align-items:center;
+  max-width:1180px;margin:0 auto;padding:40px 28px 24px}
+
+/* logo stage */
+.stage{position:relative;display:grid;place-items:center;aspect-ratio:1/1;max-width:520px;width:100%;margin:0 auto}
+.ring{position:absolute;inset:0;width:100%;height:100%;opacity:.9}
+.ring .spin,.ring .spin2{transform-origin:50% 50%}
+body.busy .ring .spin{animation:spin 14s linear infinite}
+body.busy .ring .spin2{animation:spin 22s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+.stage img{position:relative;width:74%;filter:drop-shadow(0 0 28px rgba(232,66,15,.45)) drop-shadow(0 0 4px rgba(232,166,43,.4))}
+body.busy .stage img{animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{50%{filter:drop-shadow(0 0 44px rgba(255,122,26,.7)) drop-shadow(0 0 6px rgba(232,166,43,.6))}}
+.tag{position:absolute;bottom:2%;left:50%;transform:translateX(-50%);font-family:var(--display);font-size:12px;letter-spacing:.2em;color:var(--dim);white-space:nowrap}
+
+/* console */
+.console{background:linear-gradient(160deg,var(--panel2),var(--panel));padding:28px;position:relative;
+  clip-path:polygon(26px 0,100% 0,100% calc(100% - 26px),calc(100% - 26px) 100%,0 100%,0 26px)}
+.console::before{content:"";position:absolute;inset:0;pointer-events:none;border:1px solid var(--line);clip-path:inherit}
+h1{font-family:var(--display);font-size:clamp(24px,3.2vw,34px);margin:0 0 6px;font-weight:900;letter-spacing:.04em;line-height:1.15}
+.sub{margin:0 0 22px;color:var(--dim)}
+.drop{display:block;border:1px dashed #5a4128;padding:18px 18px 14px;cursor:pointer;transition:border-color .2s,background .2s;
+  clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
+.drop:hover,.drop.over,.drop:focus-within{border-color:var(--flame);background:rgba(232,66,15,.07)}
+.drop input{position:absolute;opacity:0;width:1px;height:1px}
+.drop .t{font-weight:700;font-size:20px;overflow-wrap:anywhere}
+.drop .s{color:var(--dim);font-size:16px}
+.wave{display:flex;align-items:center;gap:3px;height:44px;margin-top:12px}
+.wave i{flex:1;background:linear-gradient(to top,var(--ember),var(--gold));height:14%;border-radius:1px;opacity:.55}
+body.busy .wave i{opacity:1;animation:eq 1s ease-in-out infinite}
+@keyframes eq{0%,100%{height:12%}50%{height:96%}}
+
+.btn{border:0;cursor:pointer;color:#1a0904;font-family:var(--display);font-weight:900;font-size:15px;letter-spacing:.12em;
+  padding:14px 20px;background:linear-gradient(90deg,var(--flame),var(--gold));
+  clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px);transition:filter .2s}
+.btn:hover:not(:disabled){filter:brightness(1.12)}
+.btn:disabled{filter:grayscale(.8) brightness(.55);cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--plasma);border:1px solid var(--plasma);clip-path:none;box-shadow:0 0 16px rgba(224,104,168,.2)}
+.btn.ghost:hover{background:var(--plasma);color:#1a0904}
+#go{margin-top:18px;width:100%}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+
+ol.steps{list-style:none;margin:22px 0 0;padding:0;display:grid;gap:2px}
+ol.steps li{display:flex;gap:12px;align-items:center;padding:7px 0;color:#6f6152;transition:color .3s}
+ol.steps li b{font-family:var(--display);font-size:11px;width:28px;height:28px;display:grid;place-items:center;border:1px solid #4a3623;flex:none}
+ol.steps li.now{color:var(--bone)} ol.steps li.now b{border-color:var(--flame);color:var(--flame);box-shadow:0 0 12px rgba(255,122,26,.5)}
+ol.steps li.ok{color:var(--dim)} ol.steps li.ok b{background:var(--gold);border-color:var(--gold);color:#1a0904}
+.bar{height:4px;background:#2a1d15;margin-top:14px}
+.bar div{height:100%;width:0;background:linear-gradient(90deg,var(--ember),var(--gold));transition:width .5s}
+#msg{min-height:26px;margin:12px 0 0;color:var(--dim)}
+#msg.err{color:#ff6b57}
+
+/* ---------- STUDIO ---------- */
+#studio{max-width:1180px;margin:8px auto 70px;padding:0 28px}
+.panel{background:linear-gradient(160deg,var(--panel2),var(--panel));border:1px solid var(--line);padding:22px}
+.studio-head{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px}
+.studio-head h2{font-family:var(--display);font-size:22px;letter-spacing:.08em;margin:0;margin-right:auto}
+.studio-head .btn{padding:11px 16px;font-size:13px}
+#saved{color:var(--gold);font-weight:600;overflow-wrap:anywhere}
+
+.sgrid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(280px,1fr);gap:22px}
+.player video{width:100%;max-height:420px;background:#000;border:1px solid var(--line);display:block}
+.ctrl{display:flex;gap:12px;align-items:center;margin-top:12px}
+.ctrl .btn{min-width:110px;padding:10px 16px;font-size:13px}
+#time{font-family:var(--display);font-size:14px;letter-spacing:.06em;color:var(--bone)}
+select{margin-left:auto;background:var(--panel);color:var(--bone);border:1px solid var(--line);padding:8px 10px;font-family:var(--body);font-size:16px}
+
+.mix{display:grid;gap:10px}
+.mix h3,.lines h3{font-family:var(--display);font-size:13px;letter-spacing:.14em;margin:0 0 4px;color:var(--dim);font-weight:700}
+.mixrow{display:grid;grid-template-columns:1fr 130px;gap:12px;align-items:center}
+.mixrow label{display:flex;gap:10px;align-items:center;cursor:pointer;font-weight:600}
+input[type=checkbox]{accent-color:var(--flame);width:18px;height:18px}
+input[type=range]{accent-color:var(--flame);width:100%}
+.presets{display:flex;gap:8px;flex-wrap:wrap}
+.presets button{background:transparent;color:var(--bone);border:1px solid var(--line);padding:7px 12px;cursor:pointer;font-family:var(--body);font-weight:600;font-size:15px}
+.presets button:hover,.presets button.on{border-color:var(--flame);color:var(--flame)}
+
+.lines{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;min-height:120px}
+.lines .who{display:inline-block;font-family:var(--display);font-size:11px;letter-spacing:.12em;padding:2px 8px;margin-bottom:6px;border:1px solid}
+.who.male{color:var(--gold);border-color:var(--gold)} .who.female{color:var(--plasma);border-color:var(--plasma)}
+#enLine{color:var(--dim)} #hiLine{font-size:22px;font-weight:600;margin-top:2px}
+
+.tracks{position:relative;margin-top:22px;cursor:col-resize;touch-action:none;user-select:none}
+.tracks canvas{display:block;width:100%}
+#ruler{height:26px;border-bottom:1px solid var(--line)}
+.tlabel{display:flex;justify-content:space-between;font-family:var(--display);font-size:11px;letter-spacing:.14em;color:var(--dim);margin:10px 0 4px}
+.tlabel .lg{display:flex;gap:14px;letter-spacing:.06em}
+.lg i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px}
+.tr{height:84px;background:rgba(0,0,0,.35);border:1px solid #2a1d15}
+#head{position:absolute;top:0;bottom:0;width:2px;background:var(--flame);box-shadow:0 0 10px var(--flame);pointer-events:none;left:0}
+#head::before{content:"";position:absolute;top:0;left:-5px;border:6px solid transparent;border-top-color:var(--flame)}
+
+@media(max-width:900px){
+  main{grid-template-columns:1fr;gap:20px;padding-top:20px}
+  .stage{max-width:300px}
+  .sgrid{grid-template-columns:1fr}
+  header{padding:14px 16px} .brand{font-size:15px} #studio{padding:0 14px}
+}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="filewarn" hidden>Ye page seedha file se khola gaya hai, isliye server nahi mil raha. <b>Start_DarkAudioChanger.bat</b> (Mac/Linux par <b>run.sh</b>) chalao, app apne aap sahi tarah khulegi.</div>
+
+<header>
+  <img src="/logo.png" alt="">
+  <div class="brand">DARK <span>AUDIO</span> CHANGER</div>
+  <div class="ver" id="ver">v-</div>
+</header>
+
+<main>
+  <section class="stage" aria-hidden="true">
+    <svg class="ring" viewBox="0 0 400 400" fill="none">
+      <g class="spin2" stroke="#3a2a1c" stroke-width="1"><circle cx="200" cy="200" r="190" stroke-dasharray="2 8"/></g>
+      <g class="spin" stroke="#e8420f" stroke-width="2">
+        <path d="M200 6 A194 194 0 0 1 394 200" stroke-opacity=".9"/>
+        <path d="M200 394 A194 194 0 0 1 6 200" stroke="#e8a62b" stroke-opacity=".9"/>
+      </g>
+      <circle cx="200" cy="200" r="176" stroke="#2a1d15"/>
+    </svg>
+    <img src="/logo.png" alt="DarkDeath Evil logo">
+    <div class="tag">English → हिन्दी</div>
+  </section>
+
+  <section class="console">
+    <h1>Awaaz badlo,<br>Hindi mein.</h1>
+    <p class="sub">English video upload karo. Male ki awaaz male Hindi voice mein, female ki female mein.</p>
+    <label class="drop" id="drop">
+      <input type="file" id="file" accept="video/*">
+      <div class="t" id="fname">Video chuno ya yahan chhodo</div>
+      <div class="s" id="fsize">MP4, MOV, MKV, WEBM</div>
+      <div class="wave" id="wave"></div>
+    </label>
+    <button class="btn" id="go" disabled>DUB SHURU KARO</button>
+    <div class="bar"><div id="fill"></div></div>
+    <p id="msg"></p>
+    <ol class="steps" id="steps"></ol>
+  </section>
+</main>
+
+<section id="studio" hidden>
+  <div class="panel">
+    <div class="studio-head">
+      <h2>PREVIEW STUDIO</h2>
+      <button class="btn ghost" id="saveBtn">SAVE KARO</button>
+      <a class="btn ghost" id="dlBtn" download style="text-decoration:none">DOWNLOAD</a>
+    </div>
+    <div id="saved"></div>
+
+    <div class="sgrid">
+      <div class="player">
+        <video id="vid" playsinline preload="auto"></video>
+        <audio id="dubAudio" preload="auto"></audio>
+        <div class="ctrl">
+          <button class="btn" id="play">PLAY</button>
+          <span id="time">00:00 / 00:00</span>
+          <select id="rate" aria-label="Speed">
+            <option value="0.5">0.5x</option><option value="0.75">0.75x</option>
+            <option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div class="mix">
+          <h3>AWAAZ MIXER</h3>
+          <div class="mixrow"><label><input type="checkbox" id="oOn"> Original awaaz</label><input type="range" id="oVol" min="0" max="100" value="100" aria-label="Original volume"></div>
+          <div class="mixrow"><label><input type="checkbox" id="dOn" checked> Hindi dub awaaz</label><input type="range" id="dVol" min="0" max="100" value="100" aria-label="Dub volume"></div>
+          <div class="presets" id="presets">
+            <button data-p="o">Sirf Original</button><button data-p="d" class="on">Sirf Dub</button><button data-p="b">Dono</button>
+          </div>
+        </div>
+        <div class="lines">
+          <h3>ABHI KYA BOL RAHA HAI</h3>
+          <div id="who"></div>
+          <div id="enLine">-</div>
+          <div id="hiLine"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tracks" id="tracks">
+      <canvas id="ruler"></canvas>
+      <div class="tlabel"><span>ORIGINAL AUDIO (ENGLISH)</span></div>
+      <canvas class="tr" id="cO"></canvas>
+      <div class="tlabel"><span>HINDI DUB AUDIO</span>
+        <span class="lg"><span><i style="background:var(--gold)"></i>Male</span><span><i style="background:var(--plasma)"></i>Female</span></span></div>
+      <canvas class="tr" id="cD"></canvas>
+      <div id="head"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+const $=id=>document.getElementById(id);
+if(location.protocol==='file:') $('filewarn').hidden=false;
+fetch('/api/version').then(r=>r.json()).then(v=>$('ver').textContent='v'+v.version).catch(()=>{});
+
+/* ---------- upload side ---------- */
+const STEPS=[["Audio nikalna",5],["English text",15],["Male / female pehchan",35],["Hindi translation",45],["Hindi awaaz banana",50],["Video mein jodna",93]];
+const wave=$('wave');
+for(let i=0;i<48;i++){const b=document.createElement('i');
+  b.style.height=(10+Math.abs(Math.sin(i*.55))*40+(i%5)*3)+'%';
+  b.style.animationDelay=(i*0.045)+'s';b.style.animationDuration=(.7+(i%7)*.12)+'s';wave.appendChild(b);}
+const ol=$('steps');
+STEPS.forEach(([name],i)=>{const li=document.createElement('li');li.innerHTML='<b>'+(i+1)+'</b><span>'+name+'</span>';ol.appendChild(li);});
+function setStage(p){let idx=-1;STEPS.forEach(([,t],i)=>{if(p>=t)idx=i;});
+  [...ol.children].forEach((li,i)=>{li.className=(p>=100||i<idx)?'ok':(i===idx?'now':'');});}
+
+const fileEl=$('file'),drop=$('drop');
+function showFile(){const f=fileEl.files[0];if(!f)return;
+  $('fname').textContent=f.name;$('fsize').textContent=(f.size/1048576).toFixed(1)+' MB';$('go').disabled=false;}
+fileEl.onchange=showFile;
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('over')}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('over')}));
+drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files.length){fileEl.files=ev.dataTransfer.files;showFile();}});
+
+function fail(t){document.body.classList.remove('busy');$('go').disabled=false;$('msg').className='err';$('msg').textContent=t;}
+
+$('go').onclick=async()=>{
+  const f=fileEl.files[0];if(!f)return;
+  $('go').disabled=true;$('studio').hidden=true;$('saved').textContent='';
+  $('msg').className='';$('msg').textContent='Upload ho raha hai...';$('fill').style.width='0';setStage(0);
+  document.body.classList.add('busy');
+  let job_id;
+  try{
+    const fd=new FormData();fd.append('file',f);
+    const r=await fetch('/api/dub',{method:'POST',body:fd});if(!r.ok)throw 0;
+    job_id=(await r.json()).job_id;
+  }catch(e){return fail('Upload fail hua. App Start_DarkAudioChanger.bat se chalao (file seedha mat kholo), ya server check karo.');}
+  const t=setInterval(async()=>{
+    try{
+      const s=await(await fetch('/api/status/'+job_id)).json();
+      $('fill').style.width=(s.progress||0)+'%';$('msg').textContent=s.message||'';setStage(s.progress||0);
+      if(s.status==='done'){clearInterval(t);document.body.classList.remove('busy');$('go').disabled=false;openStudio(job_id,s.segments||[]);}
+      if(s.status==='error'){clearInterval(t);fail(s.message||'Kuch galat hua.');}
+    }catch(e){clearInterval(t);fail('Server se connection toot gaya.');}
+  },2000);
+};
+
+/* ---------- studio ---------- */
+const v=$('vid'),a=$('dubAudio'),tracks=$('tracks');
+let JOB=null,SEGS=[],PK={o:null,d:null};
+const fmt=s=>{s=Math.max(0,s||0);const m=Math.floor(s/60),x=Math.floor(s%60);return String(m).padStart(2,'0')+':'+String(x).padStart(2,'0');};
+const dur=()=>(isFinite(v.duration)&&v.duration)||(PK.o&&PK.o.duration)||1;
+
+async function openStudio(id,segs){
+  JOB=id;SEGS=segs;
+  $('studio').hidden=false;
+  v.src='/api/media/'+id+'/video';a.src='/api/media/'+id+'/dub';
+  $('dlBtn').href='/api/download/'+id;
+  applyPreset('d');
+  try{
+    const [o,d]=await Promise.all(['original','dub'].map(k=>fetch('/api/peaks/'+id+'/'+k).then(r=>r.json())));
+    PK={o,d};
+  }catch(e){}
+  redraw();tick();
+  $('studio').scrollIntoView({behavior:'smooth'});
+}
+
+/* waveforms */
+function prep(c){const r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;
+  const x=c.getContext('2d');x.setTransform(r,0,0,r,0,0);x.clearRect(0,0,w,h);return[x,w,h];}
+function wavePaint(c,data,colorFn,withSegs){
+  const[x,w,h]=prep(c);if(!data)return;
+  const D=dur();
+  if(withSegs)SEGS.forEach(s=>{x.fillStyle=s.gender==='female'?'rgba(224,104,168,.16)':'rgba(232,166,43,.14)';
+    x.fillRect(s.start/D*w,0,Math.max((s.end-s.start)/D*w,2),h);});
+  const pk=data.peaks;let max=0.001;for(const p of pk)if(p>max)max=p;
+  const span=Math.min(data.duration/D,1)*w,n=Math.max(Math.floor(span/3),1);
+  for(let i=0;i<n;i++){
+    const A=Math.floor(i/n*pk.length),B=Math.max(Math.floor((i+1)/n*pk.length),A+1);let m=0;
+    for(let k=A;k<B;k++)if(pk[k]>m)m=pk[k];
+    const bh=Math.max(m/max*h*.46,1);
+    x.fillStyle=colorFn(i*3/w*D);x.fillRect(i*3,h/2-bh,2,bh*2);
+  }
+}
+function segAt(t){return SEGS.find(s=>t>=s.start&&t<=s.end+0.25);}
+function redraw(){
+  const[x,w,h]=prep($('ruler'));const D=dur();
+  const steps=[1,2,5,10,15,30,60,120,300,600,1800];let st=steps.find(s=>s/D*w>=70)||steps[steps.length-1];
+  x.fillStyle='#9a8a78';x.strokeStyle='#3a2a1c';x.font='11px Orbitron, sans-serif';
+  for(let t=0;t<=D;t+=st){const px=t/D*w;x.beginPath();x.moveTo(px+.5,h-8);x.lineTo(px+.5,h);x.stroke();x.fillText(fmt(t),px+4,h-9);}
+  wavePaint($('cO'),PK.o,()=>'#e8a62b',false);
+  wavePaint($('cD'),PK.d,t=>{const s=segAt(t);return s&&s.gender==='female'?'#e068a8':'#ff7a1a';},true);
+}
+window.addEventListener('resize',()=>{if(!$('studio').hidden){redraw();tick();}});
+v.addEventListener('loadedmetadata',()=>{redraw();tick();});
+
+/* playback sync: video = original awaaz, audio tag = Hindi dub */
+function applyVol(){
+  v.volume=$('oOn').checked?$('oVol').value/100:0;
+  a.volume=$('dOn').checked?$('dVol').value/100:0;
+  const sel=$('oOn').checked&&$('dOn').checked?'b':($('oOn').checked?'o':'d');
+  document.querySelectorAll('#presets button').forEach(b=>b.classList.toggle('on',b.dataset.p===sel));
+}
+function applyPreset(p){$('oOn').checked=p!=='d';$('dOn').checked=p!=='o';applyVol();}
+['oOn','dOn','oVol','dVol'].forEach(id=>$(id).addEventListener('input',applyVol));
+document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>applyPreset(b.dataset.p));
+
+$('play').onclick=()=>{v.paused?v.play():v.pause();};
+v.addEventListener('click',()=>{v.paused?v.play():v.pause();});
+v.addEventListener('play',()=>{a.currentTime=v.currentTime;a.play().catch(()=>{});$('play').textContent='PAUSE';tick();});
+v.addEventListener('pause',()=>{a.pause();$('play').textContent='PLAY';});
+v.addEventListener('ended',()=>{a.pause();$('play').textContent='PLAY';});
+v.addEventListener('seeked',()=>{a.currentTime=v.currentTime;tick();});
+v.addEventListener('waiting',()=>a.pause());
+v.addEventListener('playing',()=>{if(!v.paused)a.play().catch(()=>{});});
+v.addEventListener('timeupdate',()=>{if(!v.paused&&Math.abs(a.currentTime-v.currentTime)>0.2)a.currentTime=v.currentTime;});
+$('rate').onchange=e=>{v.playbackRate=a.playbackRate=parseFloat(e.target.value);};
+
+function tick(){
+  const t=v.currentTime,D=dur();
+  $('head').style.left=Math.min(t/D,1)*100+'%';
+  $('time').textContent=fmt(t)+' / '+fmt(D);
+  const s=segAt(t);
+  $('who').innerHTML=s?'<span class="who '+(s.gender==='female'?'female':'male')+'">'+(s.gender==='female'?'FEMALE':'MALE')+'</span>':'';
+  $('enLine').textContent=s?s.text:'-';$('hiLine').textContent=s?s.hindi:'';
+  if(!v.paused)requestAnimationFrame(tick);
+}
+
+/* click / drag on timeline to seek */
+let drag=false;
+function seekTo(e){const r=tracks.getBoundingClientRect();
+  const f=Math.min(Math.max((e.clientX-r.left)/r.width,0),1);v.currentTime=f*dur();tick();}
+tracks.addEventListener('pointerdown',e=>{drag=true;tracks.setPointerCapture(e.pointerId);seekTo(e);});
+tracks.addEventListener('pointermove',e=>{if(drag)seekTo(e);});
+tracks.addEventListener('pointerup',()=>{drag=false;});
+
+/* save */
+$('saveBtn').onclick=async()=>{
+  try{const r=await(await fetch('/api/save/'+JOB,{method:'POST'})).json();$('saved').textContent='Save ho gaya: '+r.path;}
+  catch(e){$('saved').textContent='Save nahi hua, DOWNLOAD button try karo.';}
+};
+</script>
+</body>
+</html>
