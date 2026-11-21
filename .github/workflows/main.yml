@@ -1,0 +1,72 @@
+name: Build
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Syntax check
+        run: python -m compileall app launcher.py
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-desktop.txt pyinstaller
+      - name: Build app (PyInstaller)
+        run: pyinstaller DarkAudioChanger.spec --noconfirm --clean
+      - name: Add FFmpeg and extras
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile ffmpeg.zip
+          Expand-Archive ffmpeg.zip -DestinationPath ffmpeg_tmp
+          $ff = Get-ChildItem -Recurse ffmpeg_tmp -Filter ffmpeg.exe | Select-Object -First 1
+          Copy-Item $ff.FullName dist\DarkAudioChanger\ffmpeg.exe
+          Copy-Item .env.example dist\DarkAudioChanger\.env.example
+          Copy-Item README_WINDOWS.txt dist\DarkAudioChanger\README.txt
+          New-Item -ItemType Directory -Force dist\DarkAudioChanger\data | Out-Null
+      - name: Smoke test (app start hoti hai ya nahi)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath dist\DarkAudioChanger\DarkAudioChanger.exe -PassThru
+          Start-Sleep -Seconds 30
+          try { (Invoke-WebRequest http://127.0.0.1:8000/api/version -UseBasicParsing).Content }
+          catch { Write-Host "SERVER NAHI MILA"; if (Test-Path dist\DarkAudioChanger\DarkAudioChanger.log) { Get-Content dist\DarkAudioChanger\DarkAudioChanger.log }; exit 1 }
+          finally { Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue }
+      - name: Make zip
+        id: pack
+        shell: pwsh
+        run: |
+          $v = (Get-Content VERSION).Trim()
+          Remove-Item -Recurse -Force dist\DarkAudioChanger\data\* -ErrorAction SilentlyContinue
+          7z a -tzip "DarkAudioChanger-Windows-v$v.zip" .\dist\DarkAudioChanger | Out-Null
+          "zip=DarkAudioChanger-Windows-v$v.zip" >> $env:GITHUB_OUTPUT
+          "version=$v" >> $env:GITHUB_OUTPUT
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DarkAudioChanger-Windows-v${{ steps.pack.outputs.version }}
+          path: ${{ steps.pack.outputs.zip }}
+          compression-level: 0
+      - name: Release (tag push)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pack.outputs.zip }}
