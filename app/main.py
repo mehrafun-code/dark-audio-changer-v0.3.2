@@ -5,61 +5,29 @@ import subprocess
 import sys
 import uuid
 from pathlib import Path
+from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import config
+from . import config, settings
 from .media import parse_range, wav_peaks
 from .pipeline import analyze, render
 
 app = FastAPI(title="Dark Audio Changer", version=config.VERSION)
 JOBS: dict[str, dict] = {}
 STATIC = Path(__file__).parent / "static"
-PRIVATE = {"output", "input"}
+PRIVATE = {"output", "input", "workdir"}
+
+try:
+    settings.apply_temp()
+except Exception:
+    pass
 
 
-def _progress(job_id: str):
-    def progress(msg, pct):
-        JOBS[job_id].update(status="processing", message=msg, progress=pct)
-    return progress
-
-
-def _render_work(job_id: str):
-    j = JOBS[job_id]
-    try:
-        out, segs = render(Path(j["input"]), config.DATA_DIR / job_id, j["segments"], _progress(job_id))
-        j.update(status="done", output=str(out), segments=segs, progress=100, message="Dub taiyar hai.")
-    except Exception as e:
-        j.update(status="error", message=str(e))
-
-
-def _analyze_work(job_id: str, video: Path, gender_mode: str, review: bool):
-    try:
-        segs = analyze(video, config.DATA_DIR / job_id, _progress(job_id), gender_mode)
-        JOBS[job_id]["segments"] = segs
-    except Exception as e:
-        JOBS[job_id].update(status="error", message=str(e))
-        return
-    if review:
-        JOBS[job_id].update(status="review", progress=48,
-                            message="Voice check karo, phir DUB BANAO dabao.")
-    else:
-        _render_work(job_id)
-
-
-class SegEdit(BaseModel):
-    id: int
-    gender: str
-    hindi: str
-
-
-class RenderBody(BaseModel):
-    segments: list[SegEdit]
-
-
+# ---------------- helpers ----------------
 def _job(job_id: str) -> dict:
     j = JOBS.get(job_id)
     if not j:
@@ -72,6 +40,42 @@ def _done(job_id: str) -> dict:
     if j.get("status") != "done":
         raise HTTPException(404, "Abhi ready nahi")
     return j
+
+
+def _wd(j: dict) -> Path:
+    return Path(j["workdir"])
+
+
+def _unique(path: Path) -> Path:
+    if not path.exists():
+        return path
+    i = 2
+    while True:
+        cand = path.with_name(f"{path.stem} ({i}){path.suffix}")
+        if not cand.exists():
+            return cand
+        i += 1
+
+
+def _save_copy(j: dict) -> Path:
+    dest = settings.output_dir()
+    dest.mkdir(parents=True, exist_ok=True)
+    stem = Path(j.get("name") or "video").stem
+    target = _unique(dest / f"{stem}_hindi.mp4")
+    shutil.copy2(j["output"], target)
+    return target
+
+
+def _reveal(folder: Path):
+    try:
+        if sys.platform == "win32":
+            os.startfile(str(folder))  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.Popen(["open", str(folder)])
+        else:
+            subprocess.Popen(["xdg-open", str(folder)])
+    except Exception:
+        pass
 
 
 def _ranged(request: Request, path: Path, media_type: str):
@@ -100,21 +104,97 @@ def _ranged(request: Request, path: Path, media_type: str):
                              media_type=media_type, headers=headers)
 
 
-def _reveal(folder: Path):
+# ---------------- background work ----------------
+def _progress(job_id: str):
+    def progress(msg, pct):
+        JOBS[job_id].update(status="processing", message=msg, progress=pct)
+    return progress
+
+
+def _render_work(job_id: str):
+    j = JOBS[job_id]
     try:
-        if sys.platform == "win32":
-            os.startfile(str(folder))  # type: ignore[attr-defined]
-        elif sys.platform == "darwin":
-            subprocess.Popen(["open", str(folder)])
-        else:
-            subprocess.Popen(["xdg-open", str(folder)])
-    except Exception:
-        pass
+        settings.apply_temp()
+        out, segs = render(Path(j["input"]), _wd(j), j["segments"], _progress(job_id))
+        j.update(status="done", output=str(out), segments=segs, progress=100,
+                 message="Dub taiyar hai.", saved_path=None)
+        if settings.auto_save():
+            try:
+                j["saved_path"] = str(_save_copy(j))
+            except Exception as e:
+                j["message"] = f"Dub taiyar hai (auto-save nahi hua: {e})"
+    except Exception as e:
+        j.update(status="error", message=str(e))
+
+
+def _analyze_work(job_id: str, video: Path, gender_mode: str, review: bool):
+    j = JOBS[job_id]
+    try:
+        settings.apply_temp()
+        j["segments"] = analyze(video, _wd(j), _progress(job_id), gender_mode)
+    except Exception as e:
+        j.update(status="error", message=str(e))
+        return
+    if review:
+        j.update(status="review", progress=48, message="Video sun lo aur voice check karo, phir DUB BANAO dabao.")
+    else:
+        _render_work(job_id)
+
+
+# ---------------- API ----------------
+class SegEdit(BaseModel):
+    id: int
+    gender: str
+    hindi: str
+
+
+class RenderBody(BaseModel):
+    segments: list[SegEdit]
+
+
+class SettingsBody(BaseModel):
+    output_dir: Optional[str] = None
+    work_dir: Optional[str] = None
+    auto_save: Optional[bool] = None
+
+
+class PickBody(BaseModel):
+    initial: Optional[str] = None
+    title: Optional[str] = None
 
 
 @app.get("/api/version")
 def version():
     return {"version": config.VERSION}
+
+
+@app.get("/api/settings")
+def get_settings():
+    return settings.snapshot()
+
+
+@app.post("/api/settings")
+def set_settings(b: SettingsBody):
+    try:
+        settings.update(b.output_dir, b.work_dir, b.auto_save)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return settings.snapshot()
+
+
+@app.post("/api/pick-folder")
+def pick_folder(b: PickBody):
+    return {"path": settings.pick_folder(b.title or "Folder chuno", b.initial)}
+
+
+@app.post("/api/cleanup")
+def cleanup():
+    busy = {k for k, j in JOBS.items() if j.get("status") in ("queued", "processing")}
+    freed = settings.cleanup({JOBS[k]["workdir"] for k in busy})
+    for k in list(JOBS):
+        if k not in busy and not Path(JOBS[k]["workdir"]).exists():
+            del JOBS[k]
+    return {"freed_mb": round(freed / 1048576), **settings.snapshot()}
 
 
 @app.post("/api/dub")
@@ -123,12 +203,17 @@ async def dub(bg: BackgroundTasks, file: UploadFile = File(...),
     if gender_mode not in ("auto", "male", "female"):
         gender_mode = "auto"
     job_id = uuid.uuid4().hex[:12]
-    folder = config.DATA_DIR / job_id
-    folder.mkdir(parents=True, exist_ok=True)
-    video = folder / ("input" + Path(file.filename or "v.mp4").suffix)
-    with open(video, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    JOBS[job_id] = {"status": "queued", "message": "Queue me hai", "progress": 0, "input": str(video)}
+    folder = settings.work_dir() / job_id
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        settings.apply_temp()
+        video = folder / ("input" + Path(file.filename or "v.mp4").suffix)
+        with open(video, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+    except OSError as e:
+        raise HTTPException(400, f"Temp folder me file nahi likh sake: {e}")
+    JOBS[job_id] = {"status": "queued", "message": "Queue me hai", "progress": 0,
+                    "input": str(video), "workdir": str(folder), "name": file.filename or "video.mp4"}
     bg.add_task(_analyze_work, job_id, video, gender_mode, review == "1")
     return {"job_id": job_id}
 
@@ -137,7 +222,7 @@ async def dub(bg: BackgroundTasks, file: UploadFile = File(...),
 def rerender(job_id: str, body: RenderBody, bg: BackgroundTasks):
     """Review/edit ke baad (ya dub ke baad dobara) awaaz banao."""
     j = _job(job_id)
-    if j.get("status") not in ("review", "done"):
+    if j.get("status") not in ("review", "done", "error") or not j.get("segments"):
         raise HTTPException(409, "Abhi kaam chal raha hai")
     edits = {e.id: e for e in body.segments}
     for seg in j["segments"]:
@@ -145,7 +230,7 @@ def rerender(job_id: str, body: RenderBody, bg: BackgroundTasks):
         if e:
             seg["gender"] = "female" if e.gender == "female" else "male"
             seg["hindi"] = e.hindi
-    j.update(status="processing", progress=50, message="Awaaz dobara ban rahi hai...")
+    j.update(status="processing", progress=50, message="Awaaz ban rahi hai...")
     bg.add_task(_render_work, job_id)
     return {"ok": True}
 
@@ -158,14 +243,15 @@ def status(job_id: str):
 @app.get("/api/media/{job_id}/{kind}")
 def media(job_id: str, kind: str, request: Request):
     j = _job(job_id)
-    folder = config.DATA_DIR / job_id
+    wd = _wd(j)
+    preview = wd / "preview.mp4"
     files = {
-        "video": Path(j["input"]),     # original video (original awaaz ke saath)
-        "dub": folder / "dub.wav",     # sirf Hindi dub awaaz
-        "original": folder / "audio.wav",
+        "video": preview if preview.exists() else Path(j["input"]),  # original awaaz ke saath
+        "dub": wd / "dub.wav",          # sirf Hindi dub awaaz
+        "original": wd / "audio.wav",
     }
     if j.get("output"):
-        files["final"] = Path(j["output"])    # dub wali final video
+        files["final"] = Path(j["output"])
     path = files.get(kind)
     if not path or not path.exists():
         raise HTTPException(404, "File nahi mili")
@@ -175,9 +261,9 @@ def media(job_id: str, kind: str, request: Request):
 
 @app.get("/api/peaks/{job_id}/{track}")
 def peaks(job_id: str, track: str):
-    _done(job_id)
+    j = _job(job_id)
     name = {"original": "audio.wav", "dub": "dub.wav"}.get(track)
-    p = config.DATA_DIR / job_id / (name or "")
+    p = _wd(j) / (name or "")
     if not name or not p.exists():
         raise HTTPException(404, "Track nahi mila")
     return wav_peaks(p)
@@ -186,18 +272,19 @@ def peaks(job_id: str, track: str):
 @app.get("/api/download/{job_id}")
 def download(job_id: str):
     j = _done(job_id)
-    return FileResponse(j["output"], media_type="video/mp4", filename="dark_audio_changer_hindi.mp4")
+    stem = Path(j.get("name") or "video").stem
+    return FileResponse(j["output"], media_type="video/mp4", filename=f"{stem}_hindi.mp4")
 
 
 @app.post("/api/save/{job_id}")
 def save(job_id: str):
-    """Software mode: dub video ko Downloads/DarkAudioChanger me save karo aur folder kholo."""
+    """Dub video ko chune hue output folder me save karo aur folder kholo."""
     j = _done(job_id)
-    dest = Path.home() / "Downloads" / "DarkAudioChanger"
-    dest.mkdir(parents=True, exist_ok=True)
-    target = dest / f"dark_audio_changer_{job_id}.mp4"
-    shutil.copy2(j["output"], target)
-    _reveal(dest)
+    try:
+        target = _save_copy(j)
+    except Exception as e:
+        raise HTTPException(500, f"Save nahi hua: {e}")
+    _reveal(target.parent)
     return {"path": str(target)}
 
 

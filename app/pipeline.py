@@ -1,13 +1,15 @@
 import asyncio
 import hashlib
+import threading
+import time
 from pathlib import Path
 
 import edge_tts
 from faster_whisper import WhisperModel
 from pydub import AudioSegment
 
-from . import config
-from .audio_utils import extract_audio, speed_up, merge
+from . import config, settings
+from .audio_utils import extract_audio, make_preview, speed_up, merge
 from .gender import detect_gender
 from .translate import translate_all
 
@@ -17,7 +19,8 @@ _model = None
 def get_model():
     global _model
     if _model is None:
-        _model = WhisperModel(config.WHISPER_MODEL, device=config.WHISPER_DEVICE, compute_type="int8")
+        _model = WhisperModel(config.WHISPER_MODEL, device=config.WHISPER_DEVICE, compute_type="int8",
+                              download_root=str(settings.models_dir()))
     return _model
 
 
@@ -29,14 +32,35 @@ def transcribe(wav):
         return list(segs)
     except Exception as e:
         if config.WHISPER_DEVICE != "cpu" and any(k in str(e).lower() for k in ("cublas", "cuda", "cudnn")):
-            _model = WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8")
+            _model = WhisperModel(config.WHISPER_MODEL, device="cpu", compute_type="int8",
+                                  download_root=str(settings.models_dir()))
             segs, _ = _model.transcribe(str(wav), language="en", vad_filter=True)
             return list(segs)
         raise
 
 
-def tts(text: str, voice: str, out: Path):
-    asyncio.run(edge_tts.Communicate(text, voice).save(str(out)))
+def tts(text: str, voice: str, out: Path, retries: int = 3):
+    last = None
+    for i in range(retries):
+        try:
+            asyncio.run(edge_tts.Communicate(text, voice).save(str(out)))
+            if out.exists() and out.stat().st_size > 0:
+                return
+        except Exception as e:
+            last = e
+        out.unlink(missing_ok=True)
+        time.sleep(1.5 * (i + 1))
+    hint = ""
+    if last is not None and "403" in str(last):
+        hint = " (403: Windows ka date/time sahi karo aur app ka naya version use karo)"
+    raise RuntimeError(f"Hindi awaaz service se connect nahi hui{hint}: {last}")
+
+
+def _safe_preview(video: Path, out: Path):
+    try:
+        make_preview(video, out)
+    except Exception:
+        out.unlink(missing_ok=True)  # preview nahi bani: original video se chalega
 
 
 def voice_for(gender: str) -> str:
@@ -50,6 +74,9 @@ def analyze(video: Path, workdir: Path, progress, gender_mode: str = "auto"):
 
     progress("Audio nikal rahe hain...", 5)
     extract_audio(video, wav)
+    preview = workdir / "preview.mp4"
+    prev_thread = threading.Thread(target=_safe_preview, args=(video, preview), daemon=True)
+    prev_thread.start()  # whisper ke saath-saath preview video bhi ban jaye
 
     progress("Speech-to-text (English)...", 15)
     raw = transcribe(wav)
@@ -69,6 +96,8 @@ def analyze(video: Path, workdir: Path, progress, gender_mode: str = "auto"):
     hindi = translate_all([s["text"] for s in segments])
     for s, h in zip(segments, hindi):
         s["hindi"] = h
+    progress("Preview video taiyar ho rahi hai...", 47)
+    prev_thread.join()
     return segments
 
 
@@ -87,7 +116,7 @@ def render(video: Path, workdir: Path, segments: list, progress):
         voice = voice_for(s.get("gender", "male"))
         key = hashlib.md5(f"{voice}|{text}".encode("utf-8")).hexdigest()[:12]
         raw = workdir / f"tts_{key}.mp3"
-        if not raw.exists():  # pehle bani hui awaaz dobara use hogi
+        if not raw.exists() or raw.stat().st_size == 0:  # pehle bani hui awaaz dobara use hogi
             tts(text, voice, raw)
         clip = AudioSegment.from_file(raw)
 

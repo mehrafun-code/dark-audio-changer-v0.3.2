@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.5 (build 8)
+- Fix: Hindi awaaz `403 Invalid response status` (purana edge-tts). Ab `edge-tts>=7.0.0`, 3 baar retry, aur saaf error message
+- **Video preview review se pehle hi**: dub banne se pehle original video + original audio waveform + timeline dikhte hain (browser-safe `preview.mp4` banti hai, mkv/mov bhi chalenge)
+- **Folder settings**: dub video kahan save ho (CHUNO button se folder chuno), temp/kaam ki files kahan rahein (C: drive ki jagah koi bhi drive), Whisper model bhi usi folder me
+- Auto-save option, TEMP SAAF KARO button, DEFAULT PAR WAPAS
+- Python/ffmpeg ki temporary files bhi chune hue work folder me
+- Awaaz banne me error aaye to dobara analyze nahi karna padta: editor khula rehta hai, seedha DUB BANAO se retry
+- Save/Download file ka naam ab original video ke naam par: `<naam>_hindi.mp4`
+
 ## 0.3.4 (build 7)
 - Fix: Google translate "Too many requests" error. Ab har line ke beech gap, rate-limit par ruk kar dobara try. Phir bhi fail ho to English line rehti hai jise editor me theek kar sakte ho
 - **Manual voice chunna**: upload ke time "Auto / Sab Male / Sab Female"

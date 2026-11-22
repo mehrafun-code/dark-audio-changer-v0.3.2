@@ -11,6 +11,9 @@ Python **3.11** chahiye: https://www.python.org/downloads/release/python-3119/ (
 
 > `app/static/index.html` ko seedha double click karke mat kholo. Server ke bina upload aur logo kaam nahi karte.
 
+## Folder settings
+Console me **Folder settings** kholo: dub video ka save folder aur temp/kaam ki files ka folder CHUNO button se chuno (jaise D: ya E: drive). Settings `C:\Users\<naam>\.dark_audio_changer\settings.json` me yaad rehti hain.
+
 ## Voice Editor
 Upload ke time Auto / Sab Male / Sab Female chuno. "Dub se pehle voice check" ON ho to har line ka gender aur Hindi text badal sakte ho. Dub ke baad galat awaaz lage to editor me theek karke DUBARA BANAO dabao.
 

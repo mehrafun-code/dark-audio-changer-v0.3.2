@@ -25,3 +25,10 @@ def speed_up(src: Path, dst: Path, tempo: float):
 def merge(video: Path, dub_wav: Path, out_mp4: Path):
     run(["ffmpeg", "-y", "-i", str(video), "-i", str(dub_wav),
          "-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac", "-shortest", str(out_mp4)])
+
+
+def make_preview(video: Path, out_mp4: Path):
+    """Browser me hamesha chalne wali halki preview (H.264 + AAC, max 1280px)."""
+    run(["ffmpeg", "-y", "-i", str(video), "-vf", "scale='min(1280,iw)':-2",
+         "-c:v", "libx264", "-preset", "ultrafast", "-crf", "30", "-pix_fmt", "yuv420p",
+         "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(out_mp4)])

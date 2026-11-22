@@ -136,6 +136,22 @@ input[type=range]{accent-color:var(--flame);width:100%}
 .opts select{margin-left:auto}
 .opts .chk{cursor:pointer}
 
+/* folder settings */
+button.mini{background:transparent;color:var(--bone);border:1px solid var(--line);padding:7px 12px;cursor:pointer;font-family:var(--body);font-weight:600;font-size:15px}
+button.mini:hover{border-color:var(--flame);color:var(--flame)}
+details.folders{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+details.folders summary{cursor:pointer;font-family:var(--display);font-size:12px;letter-spacing:.12em;color:var(--dim)}
+details.folders[open] summary{color:var(--flame)}
+.frow{margin-top:12px}
+.frow label{display:block;font-weight:600;margin-bottom:4px}
+.fin{display:flex;gap:8px}
+.fin input{flex:1;min-width:0;background:#0f0908;color:var(--bone);border:1px solid var(--line);padding:8px 10px;font-family:var(--body);font-size:16px}
+.fin input:focus{border-color:var(--flame);outline:none}
+.fnote{color:var(--dim);font-size:15px;margin-top:8px;overflow-wrap:anywhere}
+.fnote.err{color:#ff6b57}
+details.folders .chk{display:flex;gap:10px;align-items:center;margin-top:12px;font-weight:600;cursor:pointer}
+button:disabled.mini,.presets button:disabled{opacity:.35;cursor:not-allowed}
+
 /* voice editor */
 #editor{max-width:1180px;margin:0 auto 70px;padding:0 28px}
 .ed-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
@@ -208,6 +224,17 @@ input[type=range]{accent-color:var(--flame);width:100%}
       </label>
       <label class="chk"><input type="checkbox" id="reviewChk" checked> Dub se pehle voice check karna hai</label>
     </div>
+    <details class="folders" id="folders">
+      <summary>FOLDER SETTINGS (SAVE AUR TEMP FILES)</summary>
+      <div class="frow"><label for="outDir">Dub video yahan save hogi</label>
+        <div class="fin"><input id="outDir" type="text" spellcheck="false"><button class="mini" id="outPick">CHUNO</button></div></div>
+      <div class="frow"><label for="workDir">Temp / kaam ki files yahan rahengi (video copy, audio, Whisper model)</label>
+        <div class="fin"><input id="workDir" type="text" spellcheck="false"><button class="mini" id="workPick">CHUNO</button></div></div>
+      <label class="chk"><input type="checkbox" id="autoSave"> Dub hote hi apne aap save karo</label>
+      <div class="fnote" id="tmpInfo"></div>
+      <div class="ed-tools" style="margin-top:10px"><button class="mini" id="cleanBtn">TEMP SAAF KARO</button><button class="mini" id="resetFolders">DEFAULT PAR WAPAS</button></div>
+      <div class="fnote" id="setMsg"></div>
+    </details>
     <button class="btn" id="go" disabled>DUB SHURU KARO</button>
     <div class="bar"><div id="fill"></div></div>
     <p id="msg"></p>
@@ -259,7 +286,7 @@ input[type=range]{accent-color:var(--flame);width:100%}
       <canvas id="ruler"></canvas>
       <div class="tlabel"><span>ORIGINAL AUDIO (ENGLISH)</span></div>
       <canvas class="tr" id="cO"></canvas>
-      <div class="tlabel"><span>HINDI DUB AUDIO</span>
+      <div class="tlabel"><span>HINDI DUB AUDIO <span id="dubLbl"></span></span>
         <span class="lg"><span><i style="background:var(--gold)"></i>Male</span><span><i style="background:var(--plasma)"></i>Female</span></span></div>
       <canvas class="tr" id="cD"></canvas>
       <div id="head"></div>
@@ -319,9 +346,11 @@ function poll(job_id){
     try{
       const s=await(await fetch('/api/status/'+job_id)).json();
       $('fill').style.width=(s.progress||0)+'%';$('msg').className='';$('msg').textContent=s.message||'';setStage(s.progress||0);
-      if(s.status==='review'){clearInterval(pollTimer);busyOff();openEditor(job_id,s.segments||[],'review');}
-      else if(s.status==='done'){clearInterval(pollTimer);busyOff();openStudio(job_id,s.segments||[]);}
-      else if(s.status==='error'){clearInterval(pollTimer);fail(s.message||'Kuch galat hua.');}
+      if(s.status==='review'){clearInterval(pollTimer);busyOff();openStudio(job_id,s.segments||[],'review');}
+      else if(s.status==='done'){clearInterval(pollTimer);busyOff();openStudio(job_id,s.segments||[],'done');
+        if(s.saved_path)$('saved').textContent='Auto-save ho gaya: '+s.saved_path;}
+      else if(s.status==='error'){clearInterval(pollTimer);fail(s.message||'Kuch galat hua.');
+        if((s.segments||[]).length)openStudio(job_id,s.segments,'review');}
     }catch(e){clearInterval(pollTimer);fail('Server se connection toot gaya.');}
   },1500);
 }
@@ -347,18 +376,22 @@ let JOB=null,SEGS=[],PK={o:null,d:null};
 const fmt=s=>{s=Math.max(0,s||0);const m=Math.floor(s/60),x=Math.floor(s%60);return String(m).padStart(2,'0')+':'+String(x).padStart(2,'0');};
 const dur=()=>(isFinite(v.duration)&&v.duration)||(PK.o&&PK.o.duration)||1;
 
-async function openStudio(id,segs){
-  JOB=id;SEGS=segs;
+async function openStudio(id,segs,stage){
+  JOB=id;SEGS=segs;PK={o:null,d:null};
+  const done=stage==='done';
   $('studio').hidden=false;
-  v.src='/api/media/'+id+'/video';a.src='/api/media/'+id+'/dub?v='+Date.now();
-  $('dlBtn').href='/api/download/'+id;
-  applyPreset('d');
-  buildEditor(segs,'done');
-  try{
-    const [o,d]=await Promise.all(['original','dub'].map(k=>fetch('/api/peaks/'+id+'/'+k).then(r=>r.json())));
-    PK={o,d};
-  }catch(e){}
-  redraw();tick();
+  v.src='/api/media/'+id+'/video';
+  $('saveBtn').hidden=!done;$('dlBtn').hidden=!done;
+  $('dubLbl').textContent=done?'':'(abhi nahi bana)';
+  ['dOn','dVol'].forEach(i=>$(i).disabled=!done);
+  document.querySelectorAll('#presets [data-p=d],#presets [data-p=b]').forEach(b=>b.disabled=!done);
+  if(done){a.src='/api/media/'+id+'/dub?v='+Date.now();$('dlBtn').href='/api/download/'+id;applyPreset('d');}
+  else{a.removeAttribute('src');a.load();applyPreset('o');}
+  buildEditor(segs,done?'done':'review');
+  const get=k=>fetch('/api/peaks/'+id+'/'+k).then(r=>r.ok?r.json():null).catch(()=>null);
+  PK.o=await get('original');
+  if(done)PK.d=await get('dub');
+  redraw();tick();loadSettings();
   $('studio').scrollIntoView({behavior:'smooth'});
 }
 
@@ -366,10 +399,11 @@ async function openStudio(id,segs){
 function prep(c){const r=window.devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;c.width=w*r;c.height=h*r;
   const x=c.getContext('2d');x.setTransform(r,0,0,r,0,0);x.clearRect(0,0,w,h);return[x,w,h];}
 function wavePaint(c,data,colorFn,withSegs){
-  const[x,w,h]=prep(c);if(!data)return;
+  const[x,w,h]=prep(c);
   const D=dur();
   if(withSegs)SEGS.forEach(s=>{x.fillStyle=s.gender==='female'?'rgba(224,104,168,.16)':'rgba(232,166,43,.14)';
     x.fillRect(s.start/D*w,0,Math.max((s.end-s.start)/D*w,2),h);});
+  if(!data)return;
   const pk=data.peaks;let max=0.001;for(const p of pk)if(p>max)max=p;
   const span=Math.min(data.duration/D,1)*w,n=Math.max(Math.floor(span/3),1);
   for(let i=0;i<n;i++){
@@ -469,7 +503,7 @@ $('allF').onclick=()=>setAll(()=>'female');
 $('allA').onclick=()=>setAll(s=>s.auto_gender||'male');
 $('renderBtn').onclick=async()=>{
   if(!JOB||!ED.length)return;
-  v.pause();busyOn();$('msg').className='';$('msg').textContent='Awaaz dobara ban rahi hai...';$('fill').style.width='50%';setStage(50);
+  v.pause();$('saved').textContent='';busyOn();$('msg').className='';$('msg').textContent='Awaaz dobara ban rahi hai...';$('fill').style.width='50%';setStage(50);
   try{
     const r=await fetch('/api/render/'+JOB,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({segments:ED.map(s=>({id:s.id,gender:s.gender,hindi:s.hindi||''}))})});
@@ -478,6 +512,50 @@ $('renderBtn').onclick=async()=>{
   window.scrollTo({top:0,behavior:'smooth'});
   poll(JOB);
 };
+
+/* ---------- folder settings ---------- */
+const JH={'Content-Type':'application/json'};
+function setNote(t,err){$('setMsg').className='fnote'+(err?' err':'');$('setMsg').textContent=t;}
+async function loadSettings(){
+  try{
+    const s=await(await fetch('/api/settings')).json();
+    $('outDir').value=s.output_dir;$('workDir').value=s.work_dir;$('autoSave').checked=s.auto_save;
+    $('tmpInfo').textContent='Abhi temp files: '+s.work_size_mb+' MB  |  Whisper model: '+s.models_mb+' MB (work folder me)';
+  }catch(e){}
+}
+async function saveSetting(body){
+  try{
+    const r=await fetch('/api/settings',{method:'POST',headers:JH,body:JSON.stringify(body)});
+    const j=await r.json();
+    if(!r.ok){setNote(j.detail||'Save nahi hua',true);}
+    else{setNote('Save ho gaya. Naya temp folder agli video se use hoga.');}
+  }catch(e){setNote('Server se connection nahi.',true);}
+  loadSettings();
+}
+async function pickFolder(inputId,key){
+  setNote('Folder chunne ki window khul rahi hai (taskbar me dekho)...');
+  try{
+    const r=await(await fetch('/api/pick-folder',{method:'POST',headers:JH,body:JSON.stringify({initial:$(inputId).value})})).json();
+    if(r.path)saveSetting({[key]:r.path});
+    else setNote('Folder nahi chuna. Chahe to path khud type karke Enter dabao.');
+  }catch(e){setNote('Window nahi khuli. Path khud type karo.',true);}
+}
+$('outPick').onclick=()=>pickFolder('outDir','output_dir');
+$('workPick').onclick=()=>pickFolder('workDir','work_dir');
+$('outDir').addEventListener('change',()=>saveSetting({output_dir:$('outDir').value}));
+$('workDir').addEventListener('change',()=>saveSetting({work_dir:$('workDir').value}));
+$('autoSave').addEventListener('change',()=>saveSetting({auto_save:$('autoSave').checked}));
+$('resetFolders').onclick=()=>saveSetting({output_dir:'',work_dir:''});
+$('cleanBtn').onclick=async()=>{
+  if(!confirm('Purane sab temp files delete ho jayenge (chalta hua kaam nahi). Abhi khula preview bhi band ho jayega. Aage badhein?'))return;
+  try{
+    const r=await(await fetch('/api/cleanup',{method:'POST'})).json();
+    setNote('Saaf ho gaya: '+r.freed_mb+' MB khali hue.');
+    v.pause();$('studio').hidden=true;$('editor').hidden=true;
+    $('tmpInfo').textContent='Abhi temp files: '+r.work_size_mb+' MB  |  Whisper model: '+r.models_mb+' MB (work folder me)';
+  }catch(e){setNote('Saaf nahi hua.',true);}
+};
+loadSettings();
 
 /* save */
 $('saveBtn').onclick=async()=>{
