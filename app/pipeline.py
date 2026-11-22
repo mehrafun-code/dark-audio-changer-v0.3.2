@@ -10,7 +10,7 @@ from faster_whisper import WhisperModel
 from pydub import AudioSegment
 
 from . import config, settings
-from .audio_utils import extract_audio, make_preview, speed_up, merge, to_wav
+from .audio_utils import extract_audio, make_preview, speed_up, merge, to_wav, volume_db
 from .gender import detect_gender
 from .translate import translate_all
 
@@ -19,10 +19,18 @@ _model = None
 # style -> (rate %, pitch Hz, gain dB). Awaaz ko "padhi hui line" se zyada natural banane ke liye
 STYLES = {
     "normal": (0, 0, 0.0),
-    "josh": (12, 4, 3.0),     # excited / tez
-    "dheere": (-10, -2, -3.0),  # calm / soft
-    "gussa": (8, -2, 5.0),    # loud / gussa
+    "josh": (12, 4, 3.0),        # excited / tez
+    "khush": (6, 6, 1.0),        # khushi
+    "dheere": (-10, -2, -3.0),   # calm / soft
+    "udaas": (-15, -6, -4.0),    # udaas
+    "gussa": (8, -2, 5.0),       # gussa
+    "chillana": (10, 2, 7.0),    # loud / chillana
+    "fusfusa": (-8, -3, -9.0),   # dheemi awaaz, fusfusahat
 }
+
+
+def _clamp(v, lo, hi):
+    return max(lo, min(hi, v))
 
 
 def get_model():
@@ -73,19 +81,29 @@ def _fmt(n: int, unit: str) -> str:
     return f"{n:+d}{unit}"
 
 
-def synth(text: str, gender: str, style: str, extra_rate: int, out: Path):
+def synth(text: str, gender: str, style: str, extra_rate: int, out: Path, rate_off: int = 0, pitch_off: int = 0):
     rate, pitch, _ = STYLES.get(style, STYLES["normal"])
-    tts(text, voice_for(gender), out, rate=_fmt(rate + extra_rate, "%"), pitch=_fmt(pitch, "Hz"))
+    rate = _clamp(rate + rate_off + extra_rate, -70, 100)
+    pitch = _clamp(pitch + pitch_off, -60, 60)
+    tts(text, voice_for(gender), out, rate=_fmt(rate, "%"), pitch=_fmt(pitch, "Hz"))
 
 
-def speak_preview(text: str, gender: str, style: str) -> Path:
+def speak_preview(text: str, gender: str, style: str, rate_off: int = 0, pitch_off: int = 0, gain_off: float = 0.0) -> Path:
     """Ek line ki Hindi awaaz (editor me sunne ke liye)."""
+    st = style if style in STYLES else "normal"
     d = settings.work_dir() / "tmp"
     d.mkdir(parents=True, exist_ok=True)
-    key = hashlib.md5(f"{gender}|{style}|{text}".encode("utf-8")).hexdigest()[:12]
+    gain = round(STYLES[st][2] + gain_off, 1)
+    key = hashlib.md5(f"{gender}|{st}|{rate_off}|{pitch_off}|{gain}|{text}".encode("utf-8")).hexdigest()[:12]
     out = d / f"speak_{key}.mp3"
     if not out.exists() or out.stat().st_size == 0:
-        synth(text, gender, style, 0, out)
+        raw = d / f"speak_{key}_raw.mp3"
+        synth(text, gender, st, 0, raw, rate_off, pitch_off)
+        if gain:
+            volume_db(raw, out, gain)
+            raw.unlink(missing_ok=True)
+        else:
+            raw.replace(out)
     return out
 
 
@@ -150,13 +168,14 @@ def analyze(video: Path, workdir: Path, progress, gender_mode: str = "auto"):
     return segments, notes
 
 
-def _clip_path(text: str, gender: str, style: str, extra: int, workdir: Path) -> Path:
-    key = hashlib.md5(f"{voice_for(gender)}|{style}|{extra}|{text}".encode("utf-8")).hexdigest()[:12]
+def _clip_path(text: str, gender: str, style: str, extra: int, workdir: Path,
+               rate_off: int = 0, pitch_off: int = 0) -> Path:
+    key = hashlib.md5(f"{voice_for(gender)}|{style}|{extra}|{rate_off}|{pitch_off}|{text}".encode("utf-8")).hexdigest()[:12]
     raw = workdir / f"tts_{key}.mp3"
     wavp = workdir / f"tts_{key}.wav"
     if not wavp.exists() or wavp.stat().st_size == 0:  # pehle bani hui awaaz dobara use hogi
         if not raw.exists() or raw.stat().st_size == 0:
-            synth(text, gender, style, extra, raw)
+            synth(text, gender, style, extra, raw, rate_off, pitch_off)
         to_wav(raw, wavp)
     return wavp
 
@@ -185,7 +204,9 @@ def render(video: Path, workdir: Path, segments: list, progress):
         if style not in STYLES:
             style = "normal"
 
-        wavp = _clip_path(text, gender, style, 0, workdir)
+        r_off, p_off = int(s.get("rate", 0) or 0), int(s.get("pitch", 0) or 0)
+        g_off, shift = float(s.get("gain", 0) or 0), float(s.get("shift", 0) or 0)
+        wavp = _clip_path(text, gender, style, 0, workdir, r_off, p_off)
         clip = AudioSegment.from_wav(str(wavp))
 
         nxt = segments[i + 1]["start"] if i + 1 < n else s["end"] + 3
@@ -193,7 +214,7 @@ def render(video: Path, workdir: Path, segments: list, progress):
         if len(clip) > slot:
             # pehle awaaz ki speed khud badhao (natural), phir bhi lambi ho to atempo
             extra = min(int((len(clip) / slot - 1) * 100) + 3, 40)
-            wavp = _clip_path(text, gender, style, extra, workdir)
+            wavp = _clip_path(text, gender, style, extra, workdir, r_off, p_off)
             clip = AudioSegment.from_wav(str(wavp))
             if len(clip) > slot:
                 tempo = min(len(clip) / slot, config.MAX_SPEEDUP)
@@ -201,8 +222,8 @@ def render(video: Path, workdir: Path, segments: list, progress):
                 if not fast.exists():
                     speed_up(wavp, fast, tempo)
                 clip = AudioSegment.from_wav(str(fast))
-        clip = _level(clip, STYLES[style][2])
-        mix = mix.overlay(clip, position=int(s["start"] * 1000))
+        clip = _level(clip, STYLES[style][2] + g_off)
+        mix = mix.overlay(clip, position=max(0, int((s["start"] + shift) * 1000)))
 
     progress("Video me merge kar rahe hain...", 93)
     dub = workdir / "dub.wav"

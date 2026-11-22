@@ -156,32 +156,46 @@ button:disabled.mini,.presets button:disabled{opacity:.35;cursor:not-allowed}
 #editor{max-width:1180px;margin:0 auto 70px;padding:0 28px}
 .ed-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
 #edInfo{color:var(--dim);margin-left:auto}
-#rows{max-height:560px;overflow:auto;border:1px solid #2a1d15;background:rgba(0,0,0,.25)}
-.row{display:grid;grid-template-columns:70px 1fr 200px;gap:14px;align-items:start;padding:14px;border-bottom:1px solid #2a1d15;border-left:3px solid transparent}
+#rows{max-height:640px;overflow:auto;border:1px solid #2a1d15;background:rgba(0,0,0,.25)}
+.row{display:grid;grid-template-columns:54px 1fr 240px;gap:14px;align-items:start;padding:14px;border-bottom:1px solid #2a1d15;border-left:3px solid transparent}
 .row:last-child{border-bottom:0}
 .row.now{border-left-color:var(--flame);background:rgba(232,66,15,.07)}
-.pl{display:flex;flex-direction:column;align-items:center;gap:6px}
-.pl .play{width:46px;height:46px;border-radius:50%;border:1px solid var(--flame);background:transparent;color:var(--flame);font-size:17px;cursor:pointer;padding:0 0 0 3px;transition:background .2s,color .2s}
-.pl .play:hover{background:var(--flame);color:#1a0904}
+.pl{display:flex;flex-direction:column;align-items:center;gap:4px;padding-top:22px}
+.pl .no{font-family:var(--display);font-size:13px;color:var(--bone)}
 .pl .tm{font-family:var(--display);font-size:11px;color:var(--gold)}
-.row .en{color:var(--dim);font-size:16px;margin-bottom:6px}
-.row textarea{width:100%;background:#0f0908;color:var(--bone);border:1px solid var(--line);padding:8px 10px;font-family:var(--body);font-size:21px;font-weight:600;line-height:1.35;resize:vertical}
+.blk{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.blk:last-child{margin-bottom:0}
+.rplay{flex:none;width:44px;height:44px;margin-top:22px;border-radius:50%;border:1px solid var(--flame);background:transparent;color:var(--flame);font-size:16px;cursor:pointer;padding:0 0 0 3px;transition:background .2s,color .2s}
+.rplay:hover{background:var(--flame);color:#1a0904}
+.rplay.hp{border-color:var(--plasma);color:var(--plasma)}
+.rplay.hp:hover{background:var(--plasma);color:#1a0904}
+.rplay:disabled{opacity:.5;cursor:wait}
+.fld{flex:1;min-width:0}
+.fld label{display:block;font-family:var(--display);font-size:10px;letter-spacing:.14em;color:var(--dim);margin-bottom:3px}
+.row textarea{width:100%;background:#0f0908;color:var(--bone);border:1px solid var(--line);padding:8px 10px;font-family:var(--body);font-size:20px;font-weight:600;line-height:1.35;resize:vertical}
+.row textarea.en{font-size:18px;font-weight:500;color:#cdbfae}
 .row textarea:focus{border-color:var(--flame);outline:none}
-.row .warn{color:#ff9a6b;font-size:15px;margin-top:4px;min-height:0}
+.row .warn{color:#ff9a6b;font-size:15px;margin-top:3px}
 .row .ct{display:grid;gap:8px;align-content:start}
 .gsel{display:flex}
 .gsel button{flex:1;background:transparent;color:var(--dim);border:1px solid var(--line);padding:8px 10px;cursor:pointer;font-family:var(--display);font-size:11px;letter-spacing:.08em}
 .gsel button[data-g=male].on{background:var(--gold);color:#1a0904;border-color:var(--gold)}
 .gsel button[data-g=female].on{background:var(--plasma);color:#1a0904;border-color:var(--plasma)}
 .row select{margin-left:0;width:100%}
-.row .btns{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;align-content:flex-start}
+.row .btns{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start}
 .row .btns .mini{padding:6px 9px;font-size:14px}
-.row .btns .sp{border-color:var(--plasma);color:var(--plasma)}
 .row .hint{font-size:13px;color:var(--dim)}
+details.tune{border:1px solid var(--line);padding:6px 10px}
+details.tune summary{cursor:pointer;font-family:var(--display);font-size:11px;letter-spacing:.12em;color:var(--dim)}
+details.tune[open] summary{color:var(--flame)}
+details.tune.chg summary::after{content:" \2022  badla hua";color:var(--gold)}
+.tg{display:grid;grid-template-columns:52px 1fr 64px;gap:6px;align-items:center;margin-top:8px;font-size:15px}
+.tg b{font-weight:600;text-align:right;color:var(--gold);font-size:14px}
+.tune .mini{margin-top:8px;padding:4px 10px;font-size:13px}
 .vwrap{position:relative}
 #cap{position:absolute;left:4%;right:4%;bottom:8%;text-align:center;font-size:clamp(16px,2.2vw,24px);font-weight:700;line-height:1.3;color:#fff;
   text-shadow:0 1px 3px #000,0 0 8px #000;background:rgba(0,0,0,.45);padding:4px 10px;pointer-events:none;display:none}
-@media(max-width:900px){.row{grid-template-columns:56px 1fr}.row .ct{grid-column:1/-1}#editor{padding:0 14px}}
+@media(max-width:900px){.row{grid-template-columns:44px 1fr}.row .ct{grid-column:1/-1}#editor{padding:0 14px}}
 
 @media(max-width:900px){
   main{grid-template-columns:1fr;gap:20px;padding-top:20px}
@@ -490,35 +504,50 @@ tracks.addEventListener('pointerup',()=>{drag=false;});
 /* ---------- voice editor ---------- */
 let ED=[],EDMODE='review',stopAt=null;
 const DEVRE=/[\u0900-\u097F]/;
-const STYLE_LABEL={normal:'Andaaz: Normal',josh:'Andaaz: Josh (tez)',dheere:'Andaaz: Dheere (calm)',gussa:'Andaaz: Gussa (loud)'};
+const STYLE_LABEL={normal:'Andaaz: Normal',josh:'Andaaz: Josh (tez)',khush:'Andaaz: Khushi',dheere:'Andaaz: Dheere (calm)',
+  udaas:'Andaaz: Udaas',gussa:'Andaaz: Gussa',chillana:'Andaaz: Chillana (loud)',fusfusa:'Andaaz: Fusfusa (dheemi)'};
+const TUNE=[['rate','Speed',-50,50,5,v=>(v>0?'+':'')+v+'%'],['pitch','Pitch',-30,30,1,v=>(v>0?'+':'')+v+' Hz'],
+            ['gain','Volume',-12,12,1,v=>(v>0?'+':'')+v+' dB'],['shift','Sync',-2,2,0.1,v=>(v>0?'+':'')+Number(v).toFixed(1)+' s']];
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 const spk=new Audio();
 function row(i){return $('rows').children[i];}
 function rowMsg(i,m){row(i).querySelector('.warn').textContent=m||'';}
 
 function buildEditor(segs,mode){
-  EDMODE=mode;ED=segs.map(s=>({style:'normal',...s}));lastNow=-1;
+  EDMODE=mode;ED=segs.map(s=>({style:'normal',rate:0,pitch:0,gain:0,shift:0,orig_text:s.text,...s}));lastNow=-1;
   $('editor').hidden=false;
   $('renderBtn').textContent=mode==='review'?'DUB BANAO':'DUBARA BANAO';
-  $('edHelp').textContent=mode==='review'
-    ?'Har line: \u25B6 se original video me sunlo, Hindi text theek karo, HINDI SUNO se dub ki awaaz pehle hi check karo. Phir DUB BANAO dabao.'
-    :'Dub me koi line galat lage? \u25B6 se wahi hissa sunlo, text/gender/andaaz badlo, HINDI SUNO se check karo, phir DUBARA BANAO dabao.';
+  $('edHelp').textContent='Har line me English aur Hindi dono edit ho sakte hain. English ke \u25B6 se original awaaz sunao, Hindi ke \u25B6 se dub ki awaaz. "AWAAZ EDIT" me speed, pitch, volume aur sync badlo. Phir '+(mode==='review'?'DUB BANAO':'DUBARA BANAO')+' dabao.';
   const box=$('rows');box.innerHTML='';
   const opts=Object.entries(STYLE_LABEL).map(([k,l])=>'<option value="'+k+'">'+l+'</option>').join('');
+  const tune=TUNE.map(([k,l,mn,mx,st])=>'<span>'+l+'</span><input type="range" data-k="'+k+'" min="'+mn+'" max="'+mx+'" step="'+st+'"><b data-v="'+k+'"></b>').join('');
   ED.forEach((s,i)=>{
     const r=document.createElement('div');r.className='row';
-    r.innerHTML='<div class="pl"><button class="play" title="Is line ko original video me chalao">&#9654;</button><span class="tm">'+fmt(s.start)+'</span></div>'+
-      '<div class="tx"><div class="en">'+esc(s.text)+'</div><textarea rows="2" placeholder="Hindi (\u0926\u0947\u0935\u0928\u093E\u0917\u0930\u0940) me likho"></textarea><div class="warn"></div></div>'+
+    r.innerHTML='<div class="pl"><span class="no">#'+(i+1)+'</span><span class="tm">'+fmt(s.start)+'</span></div>'+
+      '<div class="tx">'+
+        '<div class="blk"><button class="rplay en-p" title="Original awaaz sunao (video me ye line)">&#9654;</button>'+
+          '<div class="fld"><label>ENGLISH (ORIGINAL)</label><textarea class="en" rows="2"></textarea></div></div>'+
+        '<div class="blk"><button class="rplay hp hi-p" title="Hindi dub awaaz sunao">&#9654;</button>'+
+          '<div class="fld"><label>HINDI (DUB)</label><textarea class="hi" rows="2" placeholder="Hindi (\u0926\u0947\u0935\u0928\u093E\u0917\u0930\u0940) me likho"></textarea><div class="warn"></div></div></div>'+
+      '</div>'+
       '<div class="ct"><div class="gsel"><button data-g="male">MALE</button><button data-g="female">FEMALE</button></div>'+
       '<select class="sty">'+opts+'</select>'+
-      '<div class="btns"><button class="mini sp">HINDI SUNO</button><button class="mini trn">TRANSLATE</button><button class="mini li">HINGLISH \u2192 \u0939\u093F\u0928\u094D\u0926\u0940</button></div>'+
+      '<details class="tune"><summary>AWAAZ EDIT</summary><div class="tg">'+tune+'</div><button class="mini t-reset">RESET</button></details>'+
+      '<div class="btns"><button class="mini trn">TRANSLATE</button><button class="mini li">HINGLISH \u2192 \u0939\u093F\u0928\u094D\u0926\u0940</button></div>'+
       '<div class="hint"></div></div>';
-    const ta=r.querySelector('textarea');ta.value=s.hindi||'';
-    ta.addEventListener('input',e=>{ED[i].hindi=e.target.value;ED[i].tr_failed=false;paintRow(i);});
+    const en=r.querySelector('textarea.en'),hi=r.querySelector('textarea.hi');
+    en.value=s.text||'';hi.value=s.hindi||'';
+    en.addEventListener('input',e=>{ED[i].text=e.target.value;paintRow(i);});
+    hi.addEventListener('input',e=>{ED[i].hindi=e.target.value;ED[i].tr_failed=false;paintRow(i);});
     r.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{ED[i].gender=b.dataset.g;paintRow(i);});
     const sel=r.querySelector('.sty');sel.value=ED[i].style||'normal';sel.onchange=()=>{ED[i].style=sel.value;paintRow(i);};
-    r.querySelector('.play').onclick=()=>playSegment(i);
-    r.querySelector('.sp').onclick=e=>speakLine(i,e.currentTarget);
+    r.querySelectorAll('.tune input').forEach(inp=>{
+      inp.value=ED[i][inp.dataset.k]||0;
+      inp.oninput=()=>{ED[i][inp.dataset.k]=parseFloat(inp.value);paintRow(i);};
+    });
+    r.querySelector('.t-reset').onclick=()=>{TUNE.forEach(([k])=>ED[i][k]=0);r.querySelectorAll('.tune input').forEach(x=>x.value=0);paintRow(i);};
+    r.querySelector('.en-p').onclick=()=>playSegment(i);
+    r.querySelector('.hi-p').onclick=e=>speakLine(i,e.currentTarget);
     r.querySelector('.trn').onclick=e=>translateLine(i,e.currentTarget);
     r.querySelector('.li').onclick=e=>translitLine(i,e.currentTarget);
     box.appendChild(r);paintRow(i);
@@ -527,9 +556,12 @@ function buildEditor(segs,mode){
 function paintRow(i){
   const r=row(i),s=ED[i],t=(s.hindi||'').trim();
   r.querySelectorAll('.gsel button').forEach(b=>b.classList.toggle('on',b.dataset.g===s.gender));
+  TUNE.forEach(([k,,,,,f])=>{r.querySelector('[data-v='+k+']').textContent=f(s[k]||0);});
+  r.querySelector('details.tune').classList.toggle('chg',TUNE.some(([k])=>(s[k]||0)!==0));
   const bits=[];
   if(s.gender!==s.auto_gender)bits.push('gender auto: '+s.auto_gender);
   if(s.auto_style&&s.style!==s.auto_style)bits.push('andaaz auto: '+s.auto_style);
+  if((s.text||'')!==(s.orig_text||''))bits.push('English badla hai, TRANSLATE dabao');
   r.querySelector('.hint').textContent=bits.join(' | ');
   const noHindi=!!t&&!DEVRE.test(t);
   r.querySelector('.li').style.display=noHindi?'':'none';
@@ -540,7 +572,7 @@ function paintRow(i){
   const mc=ED.filter(x=>x.gender==='male').length;
   $('edInfo').textContent=ED.length+' lines: '+mc+' male, '+(ED.length-mc)+' female';
 }
-function setHindi(i,text){ED[i].hindi=text;ED[i].tr_failed=false;row(i).querySelector('textarea').value=text;paintRow(i);}
+function setHindi(i,text){ED[i].hindi=text;ED[i].tr_failed=false;row(i).querySelector('textarea.hi').value=text;paintRow(i);}
 
 function playSegment(i){
   spk.pause();const s=ED[i];
@@ -551,13 +583,13 @@ function playSegment(i){
 async function speakLine(i,btn){
   const s=ED[i];if(!(s.hindi||'').trim()){rowMsg(i,'Pehle Hindi text likho.');return;}
   v.pause();stopAt=null;
-  const old=btn.textContent;btn.textContent='...';btn.disabled=true;rowMsg(i,'');
+  const old=btn.innerHTML;btn.innerHTML='&hellip;';btn.disabled=true;rowMsg(i,'');
   try{
-    const r=await fetch('/api/speak',{method:'POST',headers:JH,body:JSON.stringify({text:s.hindi,gender:s.gender,style:s.style||'normal'})});
+    const r=await fetch('/api/speak',{method:'POST',headers:JH,body:JSON.stringify({text:s.hindi,gender:s.gender,style:s.style||'normal',rate:s.rate||0,pitch:s.pitch||0,gain:s.gain||0})});
     if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.detail||'Awaaz nahi bani');}
     spk.src=URL.createObjectURL(await r.blob());await spk.play();
   }catch(e){rowMsg(i,String(e.message||e));}
-  btn.textContent=old;btn.disabled=false;
+  btn.innerHTML=old;btn.disabled=false;
 }
 async function callTranslate(texts,secs){
   const r=await fetch('/api/translate',{method:'POST',headers:JH,body:JSON.stringify({texts,seconds:secs})});
@@ -565,11 +597,13 @@ async function callTranslate(texts,secs){
   return r.json();
 }
 async function translateLine(i,btn){
-  const s=ED[i],old=btn.textContent;btn.textContent='...';btn.disabled=true;rowMsg(i,'');
+  const s=ED[i],old=btn.textContent;
+  if(!(s.text||'').trim()){rowMsg(i,'English line khali hai.');return;}
+  btn.textContent='...';btn.disabled=true;rowMsg(i,'');
   try{
     const res=await callTranslate([s.text],[s.end-s.start]);
     if(res.failed.includes(0)){ED[i].tr_failed=true;paintRow(i);rowMsg(i,res.note||'Translation nahi hua. Internet check karo ya Settings me Claude API key daalo.');}
-    else setHindi(i,res.hindi[0]);
+    else{setHindi(i,res.hindi[0]);ED[i].orig_text=ED[i].text;paintRow(i);}
   }catch(e){rowMsg(i,String(e.message||e));}
   btn.textContent=old;btn.disabled=false;
 }
@@ -604,7 +638,7 @@ $('renderBtn').onclick=async()=>{
   v.pause();spk.pause();stopAt=null;$('saved').textContent='';busyOn();$('msg').className='';$('msg').textContent='Awaaz ban rahi hai...';$('fill').style.width='50%';setStage(50);
   try{
     const r=await fetch('/api/render/'+JOB,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({segments:ED.map(s=>({id:s.id,gender:s.gender,hindi:s.hindi||'',style:s.style||'normal'}))})});
+      body:JSON.stringify({segments:ED.map(s=>({id:s.id,gender:s.gender,hindi:s.hindi||'',style:s.style||'normal',text:s.text||'',rate:Math.round(s.rate||0),pitch:Math.round(s.pitch||0),gain:s.gain||0,shift:s.shift||0}))})});
     if(!r.ok)throw 0;
   }catch(e){return fail('Dub shuru nahi hua. Server check karo.');}
   window.scrollTo({top:0,behavior:'smooth'});

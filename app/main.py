@@ -148,6 +148,11 @@ class SegEdit(BaseModel):
     gender: str
     hindi: str
     style: str = "normal"
+    text: Optional[str] = None     # English line (edit kiya ho to)
+    rate: int = 0                  # speed offset %
+    pitch: int = 0                 # pitch offset Hz
+    gain: float = 0.0              # volume offset dB
+    shift: float = 0.0             # sync offset seconds
 
 
 class RenderBody(BaseModel):
@@ -170,6 +175,9 @@ class SpeakBody(BaseModel):
     text: str
     gender: str = "male"
     style: str = "normal"
+    rate: int = 0
+    pitch: int = 0
+    gain: float = 0.0
 
 
 class TranslateBody(BaseModel):
@@ -188,7 +196,8 @@ def speak(b: SpeakBody):
         raise HTTPException(400, "Pehle Hindi text likho")
     try:
         path = speak_preview(b.text.strip(), "female" if b.gender == "female" else "male",
-                             b.style if b.style in STYLES else "normal")
+                             b.style if b.style in STYLES else "normal",
+                             max(-60, min(60, b.rate)), max(-40, min(40, b.pitch)), max(-15.0, min(15.0, b.gain)))
     except Exception as e:
         raise HTTPException(502, str(e))
     return FileResponse(path, media_type="audio/mpeg")
@@ -275,6 +284,12 @@ def rerender(job_id: str, body: RenderBody, bg: BackgroundTasks):
             seg["gender"] = "female" if e.gender == "female" else "male"
             seg["hindi"] = e.hindi
             seg["style"] = e.style if e.style in STYLES else "normal"
+            if e.text is not None and e.text.strip():
+                seg["text"] = e.text
+            seg["rate"] = max(-60, min(60, e.rate))
+            seg["pitch"] = max(-40, min(40, e.pitch))
+            seg["gain"] = max(-15.0, min(15.0, e.gain))
+            seg["shift"] = max(-3.0, min(3.0, e.shift))
             seg["tr_failed"] = False
     j.update(status="processing", progress=50, message="Awaaz ban rahi hai...")
     bg.add_task(_render_work, job_id)

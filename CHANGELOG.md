@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.1 (build 11)
+- **English line bhi editable** (Whisper ki galti theek karo) aur uska apna Play (original awaaz) - Hindi line ke jaise; edit karke TRANSLATE dabao to naya English translate hota hai
+- Hindi line ka apna gol Play (dub awaaz turant sunao), English ka alag Play
+- **AWAAZ EDIT** har line ke liye: Speed (-50% se +50%), Pitch (-30 se +30 Hz), Volume (-12 se +12 dB), Sync (-2 se +2 sec), RESET
+- Emotion andaaz 8: Normal, Josh, Khushi, Dheere, Udaas, Gussa, Chillana, Fusfusa
+- HINDI SUNO me speed/pitch/volume/andaaz sab turant lagta hai
+- Line number (#1, #2...) dikhta hai
+
 ## 0.4.0 (build 10)
 - **Translation theek**: ab Claude (agar API key ho) -> Google -> doosra Google -> MyMemory, 4 tareeke. Sirf wahi result maana jata hai jisme Hindi (devanagari) ho. Jo line translate na ho wo laal warning ke saath dikhti hai (pehle chup-chap English reh jati thi)
 - Settings me **Claude API key** (optional) - slang ('bro', 'bruh') ka natural bolchal wali Hindi me translation, timing ke hisaab se chhoti/lambi
