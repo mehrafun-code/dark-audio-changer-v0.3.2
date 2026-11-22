@@ -32,3 +32,8 @@ def make_preview(video: Path, out_mp4: Path):
     run(["ffmpeg", "-y", "-i", str(video), "-vf", "scale='min(1280,iw)':-2",
          "-c:v", "libx264", "-preset", "ultrafast", "-crf", "30", "-pix_fmt", "yuv420p",
          "-c:a", "aac", "-b:a", "96k", "-movflags", "+faststart", str(out_mp4)])
+
+
+def to_wav(src: Path, dst: Path):
+    """mp3 -> wav (24 kHz mono). Isse pydub ko ffprobe ki zaroorat nahi padti."""
+    run(["ffmpeg", "-y", "-i", str(src), "-ar", "24000", "-ac", "1", str(dst)])

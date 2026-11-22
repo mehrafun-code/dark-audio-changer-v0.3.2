@@ -9,7 +9,7 @@ from faster_whisper import WhisperModel
 from pydub import AudioSegment
 
 from . import config, settings
-from .audio_utils import extract_audio, make_preview, speed_up, merge
+from .audio_utils import extract_audio, make_preview, speed_up, merge, to_wav
 from .gender import detect_gender
 from .translate import translate_all
 
@@ -104,7 +104,7 @@ def analyze(video: Path, workdir: Path, progress, gender_mode: str = "auto"):
 def render(video: Path, workdir: Path, segments: list, progress):
     """Stage 2: Hindi text + gender se awaaz banao, mix karo, video me jodo."""
     wav = workdir / "audio.wav"
-    total_ms = int(AudioSegment.from_file(wav).duration_seconds * 1000) + 1000
+    total_ms = int(AudioSegment.from_wav(str(wav)).duration_seconds * 1000) + 1000
     mix = AudioSegment.silent(duration=total_ms, frame_rate=24000).set_channels(1)
 
     n = len(segments)
@@ -116,18 +116,21 @@ def render(video: Path, workdir: Path, segments: list, progress):
         voice = voice_for(s.get("gender", "male"))
         key = hashlib.md5(f"{voice}|{text}".encode("utf-8")).hexdigest()[:12]
         raw = workdir / f"tts_{key}.mp3"
-        if not raw.exists() or raw.stat().st_size == 0:  # pehle bani hui awaaz dobara use hogi
-            tts(text, voice, raw)
-        clip = AudioSegment.from_file(raw)
+        wavp = workdir / f"tts_{key}.wav"
+        if not wavp.exists() or wavp.stat().st_size == 0:  # pehle bani hui awaaz dobara use hogi
+            if not raw.exists() or raw.stat().st_size == 0:
+                tts(text, voice, raw)
+            to_wav(raw, wavp)
+        clip = AudioSegment.from_wav(str(wavp))
 
         nxt = segments[i + 1]["start"] if i + 1 < n else s["end"] + 3
         slot = max(nxt - s["start"] - 0.1, 0.5) * 1000
         if len(clip) > slot:
             tempo = min(len(clip) / slot, config.MAX_SPEEDUP)
-            fast = workdir / f"tts_{key}_{tempo:.2f}.mp3"
+            fast = workdir / f"tts_{key}_{tempo:.2f}.wav"
             if not fast.exists():
-                speed_up(raw, fast, tempo)
-            clip = AudioSegment.from_file(fast)
+                speed_up(wavp, fast, tempo)
+            clip = AudioSegment.from_wav(str(fast))
         mix = mix.overlay(clip, position=int(s["start"] * 1000))
 
     progress("Video me merge kar rahe hain...", 93)

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.6 (build 9)
+- Fix: `[WinError 2] The system cannot find the file specified` (Hindi awaaz banate waqt). pydub ko `ffprobe` chahiye tha jo exe me nahi tha. Ab awaaz seedha ffmpeg se wav me badalti hai (ffprobe ki zaroorat nahi) aur workflow `ffprobe.exe` bhi saath rakhta hai
+- Workflow ek hi `main.yml` me (Linux check + Windows build)
+
 ## 0.3.5 (build 8)
 - Fix: Hindi awaaz `403 Invalid response status` (purana edge-tts). Ab `edge-tts>=7.0.0`, 3 baar retry, aur saaf error message
 - **Video preview review se pehle hi**: dub banne se pehle original video + original audio waveform + timeline dikhte hain (browser-safe `preview.mp4` banti hai, mkv/mov bhi chalenge)
