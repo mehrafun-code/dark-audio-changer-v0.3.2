@@ -155,23 +155,33 @@ button:disabled.mini,.presets button:disabled{opacity:.35;cursor:not-allowed}
 /* voice editor */
 #editor{max-width:1180px;margin:0 auto 70px;padding:0 28px}
 .ed-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
-.ed-tools button.mini{background:transparent;color:var(--bone);border:1px solid var(--line);padding:7px 12px;cursor:pointer;font-family:var(--body);font-weight:600;font-size:15px}
-.ed-tools button.mini:hover{border-color:var(--flame);color:var(--flame)}
 #edInfo{color:var(--dim);margin-left:auto}
-#rows{max-height:460px;overflow:auto;border:1px solid #2a1d15;background:rgba(0,0,0,.25)}
-.row{display:grid;grid-template-columns:64px 1fr auto;gap:14px;align-items:start;padding:12px 14px;border-bottom:1px solid #2a1d15}
+#rows{max-height:560px;overflow:auto;border:1px solid #2a1d15;background:rgba(0,0,0,.25)}
+.row{display:grid;grid-template-columns:70px 1fr 200px;gap:14px;align-items:start;padding:14px;border-bottom:1px solid #2a1d15;border-left:3px solid transparent}
 .row:last-child{border-bottom:0}
-.row .ts{font-family:var(--display);font-size:12px;color:var(--gold);background:transparent;border:1px solid var(--line);padding:7px 0;cursor:pointer}
-.row .ts:hover{border-color:var(--gold)}
+.row.now{border-left-color:var(--flame);background:rgba(232,66,15,.07)}
+.pl{display:flex;flex-direction:column;align-items:center;gap:6px}
+.pl .play{width:46px;height:46px;border-radius:50%;border:1px solid var(--flame);background:transparent;color:var(--flame);font-size:17px;cursor:pointer;padding:0 0 0 3px;transition:background .2s,color .2s}
+.pl .play:hover{background:var(--flame);color:#1a0904}
+.pl .tm{font-family:var(--display);font-size:11px;color:var(--gold)}
 .row .en{color:var(--dim);font-size:16px;margin-bottom:6px}
-.row textarea{width:100%;background:#0f0908;color:var(--bone);border:1px solid var(--line);padding:8px 10px;font-family:var(--body);font-size:19px;font-weight:600;resize:vertical}
+.row textarea{width:100%;background:#0f0908;color:var(--bone);border:1px solid var(--line);padding:8px 10px;font-family:var(--body);font-size:21px;font-weight:600;line-height:1.35;resize:vertical}
 .row textarea:focus{border-color:var(--flame);outline:none}
+.row .warn{color:#ff9a6b;font-size:15px;margin-top:4px;min-height:0}
+.row .ct{display:grid;gap:8px;align-content:start}
 .gsel{display:flex}
-.gsel button{background:transparent;color:var(--dim);border:1px solid var(--line);padding:8px 12px;cursor:pointer;font-family:var(--display);font-size:11px;letter-spacing:.08em}
+.gsel button{flex:1;background:transparent;color:var(--dim);border:1px solid var(--line);padding:8px 10px;cursor:pointer;font-family:var(--display);font-size:11px;letter-spacing:.08em}
 .gsel button[data-g=male].on{background:var(--gold);color:#1a0904;border-color:var(--gold)}
 .gsel button[data-g=female].on{background:var(--plasma);color:#1a0904;border-color:var(--plasma)}
-.row .hint{font-size:13px;color:var(--dim);margin-top:4px;text-align:right}
-@media(max-width:900px){.row{grid-template-columns:1fr}.gsel{justify-self:start}#editor{padding:0 14px}}
+.row select{margin-left:0;width:100%}
+.row .btns{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;align-content:flex-start}
+.row .btns .mini{padding:6px 9px;font-size:14px}
+.row .btns .sp{border-color:var(--plasma);color:var(--plasma)}
+.row .hint{font-size:13px;color:var(--dim)}
+.vwrap{position:relative}
+#cap{position:absolute;left:4%;right:4%;bottom:8%;text-align:center;font-size:clamp(16px,2.2vw,24px);font-weight:700;line-height:1.3;color:#fff;
+  text-shadow:0 1px 3px #000,0 0 8px #000;background:rgba(0,0,0,.45);padding:4px 10px;pointer-events:none;display:none}
+@media(max-width:900px){.row{grid-template-columns:56px 1fr}.row .ct{grid-column:1/-1}#editor{padding:0 14px}}
 
 @media(max-width:900px){
   main{grid-template-columns:1fr;gap:20px;padding-top:20px}
@@ -225,12 +235,14 @@ button:disabled.mini,.presets button:disabled{opacity:.35;cursor:not-allowed}
       <label class="chk"><input type="checkbox" id="reviewChk" checked> Dub se pehle voice check karna hai</label>
     </div>
     <details class="folders" id="folders">
-      <summary>FOLDER SETTINGS (SAVE AUR TEMP FILES)</summary>
+      <summary>SETTINGS (FOLDER AUR API KEY)</summary>
       <div class="frow"><label for="outDir">Dub video yahan save hogi</label>
         <div class="fin"><input id="outDir" type="text" spellcheck="false"><button class="mini" id="outPick">CHUNO</button></div></div>
       <div class="frow"><label for="workDir">Temp / kaam ki files yahan rahengi (video copy, audio, Whisper model)</label>
         <div class="fin"><input id="workDir" type="text" spellcheck="false"><button class="mini" id="workPick">CHUNO</button></div></div>
       <label class="chk"><input type="checkbox" id="autoSave"> Dub hote hi apne aap save karo</label>
+      <div class="frow"><label for="apiKey">Claude API key (optional, bahut natural Hindi translation ke liye)</label>
+        <div class="fin"><input id="apiKey" type="password" placeholder="sk-ant-..." autocomplete="off" spellcheck="false"><button class="mini" id="apiSave">SAVE</button></div></div>
       <div class="fnote" id="tmpInfo"></div>
       <div class="ed-tools" style="margin-top:10px"><button class="mini" id="cleanBtn">TEMP SAAF KARO</button><button class="mini" id="resetFolders">DEFAULT PAR WAPAS</button></div>
       <div class="fnote" id="setMsg"></div>
@@ -253,7 +265,7 @@ button:disabled.mini,.presets button:disabled{opacity:.35;cursor:not-allowed}
 
     <div class="sgrid">
       <div class="player">
-        <video id="vid" playsinline preload="auto"></video>
+        <div class="vwrap"><video id="vid" playsinline preload="auto"></video><div id="cap"></div></div>
         <audio id="dubAudio" preload="auto"></audio>
         <div class="ctrl">
           <button class="btn" id="play">PLAY</button>
@@ -305,6 +317,7 @@ button:disabled.mini,.presets button:disabled{opacity:.35;cursor:not-allowed}
       <button class="mini" id="allM">Sab Male</button>
       <button class="mini" id="allF">Sab Female</button>
       <button class="mini" id="allA">Auto wapas</button>
+      <button class="mini" id="allT">Sab line Hindi me translate karo</button>
       <span id="edInfo"></span>
     </div>
     <div id="rows"></div>
@@ -346,6 +359,7 @@ function poll(job_id){
     try{
       const s=await(await fetch('/api/status/'+job_id)).json();
       $('fill').style.width=(s.progress||0)+'%';$('msg').className='';$('msg').textContent=s.message||'';setStage(s.progress||0);
+      if(s.status==='review'&&(s.notes||[]).length){$('msg').className='err';$('msg').textContent=s.notes.join(' ')+' Neeche editor me TRANSLATE button ya Settings me Claude API key try karo.';}
       if(s.status==='review'){clearInterval(pollTimer);busyOff();openStudio(job_id,s.segments||[],'review');}
       else if(s.status==='done'){clearInterval(pollTimer);busyOff();openStudio(job_id,s.segments||[],'done');
         if(s.saved_path)$('saved').textContent='Auto-save ho gaya: '+s.saved_path;}
@@ -413,7 +427,7 @@ function wavePaint(c,data,colorFn,withSegs){
     x.fillStyle=colorFn(i*3/w*D);x.fillRect(i*3,h/2-bh,2,bh*2);
   }
 }
-function segAt(t){return SEGS.find(s=>t>=s.start&&t<=s.end+0.25);}
+function segAt(t,list){return(list||SEGS).find(s=>t>=s.start&&t<=s.end+0.25);}
 function redraw(){
   const[x,w,h]=prep($('ruler'));const D=dur();
   const steps=[1,2,5,10,15,30,60,120,300,600,1800];let st=steps.find(s=>s/D*w>=70)||steps[steps.length-1];
@@ -436,7 +450,7 @@ function applyPreset(p){$('oOn').checked=p!=='d';$('dOn').checked=p!=='o';applyV
 ['oOn','dOn','oVol','dVol'].forEach(id=>$(id).addEventListener('input',applyVol));
 document.querySelectorAll('#presets button').forEach(b=>b.onclick=()=>applyPreset(b.dataset.p));
 
-$('play').onclick=()=>{v.paused?v.play():v.pause();};
+$('play').onclick=()=>{stopAt=null;v.paused?v.play():v.pause();};
 v.addEventListener('click',()=>{v.paused?v.play():v.pause();});
 v.addEventListener('play',()=>{a.currentTime=v.currentTime;a.play().catch(()=>{});$('play').textContent='PAUSE';tick();});
 v.addEventListener('pause',()=>{a.pause();$('play').textContent='PLAY';});
@@ -447,13 +461,21 @@ v.addEventListener('playing',()=>{if(!v.paused)a.play().catch(()=>{});});
 v.addEventListener('timeupdate',()=>{if(!v.paused&&Math.abs(a.currentTime-v.currentTime)>0.2)a.currentTime=v.currentTime;});
 $('rate').onchange=e=>{v.playbackRate=a.playbackRate=parseFloat(e.target.value);};
 
+let lastNow=-1;
 function tick(){
   const t=v.currentTime,D=dur();
   $('head').style.left=Math.min(t/D,1)*100+'%';
   $('time').textContent=fmt(t)+' / '+fmt(D);
-  const s=segAt(t);
+  const list=ED.length?ED:SEGS;
+  const s=segAt(t,list);
   $('who').innerHTML=s?'<span class="who '+(s.gender==='female'?'female':'male')+'">'+(s.gender==='female'?'FEMALE':'MALE')+'</span>':'';
-  $('enLine').textContent=s?s.text:'-';$('hiLine').textContent=s?s.hindi:'';
+  $('enLine').textContent=s?s.text:'-';$('hiLine').textContent=s?(s.hindi||''):'';
+  const cap=$('cap');cap.textContent=s?(s.hindi||s.text):'';cap.style.display=s?'block':'none';
+  const idx=s?list.indexOf(s):-1;
+  if(idx!==lastNow){const rows=$('rows').children;
+    if(rows[lastNow])rows[lastNow].classList.remove('now');
+    if(rows[idx])rows[idx].classList.add('now');lastNow=idx;}
+  if(stopAt!==null&&t>=stopAt){v.pause();stopAt=null;}
   if(!v.paused)requestAnimationFrame(tick);
 }
 
@@ -461,52 +483,128 @@ function tick(){
 let drag=false;
 function seekTo(e){const r=tracks.getBoundingClientRect();
   const f=Math.min(Math.max((e.clientX-r.left)/r.width,0),1);v.currentTime=f*dur();tick();}
-tracks.addEventListener('pointerdown',e=>{drag=true;tracks.setPointerCapture(e.pointerId);seekTo(e);});
+tracks.addEventListener('pointerdown',e=>{stopAt=null;drag=true;tracks.setPointerCapture(e.pointerId);seekTo(e);});
 tracks.addEventListener('pointermove',e=>{if(drag)seekTo(e);});
 tracks.addEventListener('pointerup',()=>{drag=false;});
 
 /* ---------- voice editor ---------- */
-let ED=[],EDMODE='review';
-function openEditor(id,segs,mode){JOB=id;buildEditor(segs,mode);if(mode==='review')$('editor').scrollIntoView({behavior:'smooth'});}
+let ED=[],EDMODE='review',stopAt=null;
+const DEVRE=/[\u0900-\u097F]/;
+const STYLE_LABEL={normal:'Andaaz: Normal',josh:'Andaaz: Josh (tez)',dheere:'Andaaz: Dheere (calm)',gussa:'Andaaz: Gussa (loud)'};
 function esc(t){return String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+const spk=new Audio();
+function row(i){return $('rows').children[i];}
+function rowMsg(i,m){row(i).querySelector('.warn').textContent=m||'';}
+
 function buildEditor(segs,mode){
-  EDMODE=mode;ED=segs.map(s=>({...s}));
+  EDMODE=mode;ED=segs.map(s=>({style:'normal',...s}));lastNow=-1;
   $('editor').hidden=false;
   $('renderBtn').textContent=mode==='review'?'DUB BANAO':'DUBARA BANAO';
   $('edHelp').textContent=mode==='review'
-    ?'Har line ke liye Male ya Female chuno aur Hindi text theek karo. Phir DUB BANAO dabao.'
-    :'Dub me koi awaaz galat lage? Time par click karke video wahan sunlo, gender ya Hindi text badlo, phir DUBARA BANAO dabao.';
+    ?'Har line: \u25B6 se original video me sunlo, Hindi text theek karo, HINDI SUNO se dub ki awaaz pehle hi check karo. Phir DUB BANAO dabao.'
+    :'Dub me koi line galat lage? \u25B6 se wahi hissa sunlo, text/gender/andaaz badlo, HINDI SUNO se check karo, phir DUBARA BANAO dabao.';
   const box=$('rows');box.innerHTML='';
+  const opts=Object.entries(STYLE_LABEL).map(([k,l])=>'<option value="'+k+'">'+l+'</option>').join('');
   ED.forEach((s,i)=>{
     const r=document.createElement('div');r.className='row';
-    r.innerHTML='<button class="ts" title="Video me yahan jao">'+fmt(s.start)+'</button>'+
-      '<div><div class="en">'+esc(s.text)+'</div><textarea rows="2"></textarea></div>'+
-      '<div><div class="gsel"><button data-g="male">MALE</button><button data-g="female">FEMALE</button></div>'+
+    r.innerHTML='<div class="pl"><button class="play" title="Is line ko original video me chalao">&#9654;</button><span class="tm">'+fmt(s.start)+'</span></div>'+
+      '<div class="tx"><div class="en">'+esc(s.text)+'</div><textarea rows="2" placeholder="Hindi (\u0926\u0947\u0935\u0928\u093E\u0917\u0930\u0940) me likho"></textarea><div class="warn"></div></div>'+
+      '<div class="ct"><div class="gsel"><button data-g="male">MALE</button><button data-g="female">FEMALE</button></div>'+
+      '<select class="sty">'+opts+'</select>'+
+      '<div class="btns"><button class="mini sp">HINDI SUNO</button><button class="mini trn">TRANSLATE</button><button class="mini li">HINGLISH \u2192 \u0939\u093F\u0928\u094D\u0926\u0940</button></div>'+
       '<div class="hint"></div></div>';
-    r.querySelector('textarea').value=s.hindi||'';
-    r.querySelector('textarea').addEventListener('input',e=>{ED[i].hindi=e.target.value;});
+    const ta=r.querySelector('textarea');ta.value=s.hindi||'';
+    ta.addEventListener('input',e=>{ED[i].hindi=e.target.value;ED[i].tr_failed=false;paintRow(i);});
     r.querySelectorAll('.gsel button').forEach(b=>b.onclick=()=>{ED[i].gender=b.dataset.g;paintRow(i);});
-    r.querySelector('.ts').onclick=()=>{if(!$('studio').hidden){v.currentTime=s.start;v.play();}};
+    const sel=r.querySelector('.sty');sel.value=ED[i].style||'normal';sel.onchange=()=>{ED[i].style=sel.value;paintRow(i);};
+    r.querySelector('.play').onclick=()=>playSegment(i);
+    r.querySelector('.sp').onclick=e=>speakLine(i,e.currentTarget);
+    r.querySelector('.trn').onclick=e=>translateLine(i,e.currentTarget);
+    r.querySelector('.li').onclick=e=>translitLine(i,e.currentTarget);
     box.appendChild(r);paintRow(i);
   });
 }
 function paintRow(i){
-  const r=$('rows').children[i],s=ED[i];
+  const r=row(i),s=ED[i],t=(s.hindi||'').trim();
   r.querySelectorAll('.gsel button').forEach(b=>b.classList.toggle('on',b.dataset.g===s.gender));
-  r.querySelector('.hint').textContent=s.gender!==s.auto_gender?'auto: '+s.auto_gender+' (badla hua)':'';
-  const m=ED.filter(x=>x.gender==='male').length;
-  $('edInfo').textContent=ED.length+' lines: '+m+' male, '+(ED.length-m)+' female';
+  const bits=[];
+  if(s.gender!==s.auto_gender)bits.push('gender auto: '+s.auto_gender);
+  if(s.auto_style&&s.style!==s.auto_style)bits.push('andaaz auto: '+s.auto_style);
+  r.querySelector('.hint').textContent=bits.join(' | ');
+  const noHindi=!!t&&!DEVRE.test(t);
+  r.querySelector('.li').style.display=noHindi?'':'none';
+  let m='';
+  if(s.tr_failed&&!DEVRE.test(t))m='Translation nahi ho paya. TRANSLATE dabao ya khud Hindi likho.';
+  else if(noHindi)m='Isme Hindi (\u0926\u0947\u0935\u0928\u093E\u0917\u0930\u0940) nahi hai, awaaz English jaisi aayegi. TRANSLATE ya HINGLISH \u2192 \u0939\u093F\u0928\u094D\u0926\u0940 dabao.';
+  rowMsg(i,m);
+  const mc=ED.filter(x=>x.gender==='male').length;
+  $('edInfo').textContent=ED.length+' lines: '+mc+' male, '+(ED.length-mc)+' female';
+}
+function setHindi(i,text){ED[i].hindi=text;ED[i].tr_failed=false;row(i).querySelector('textarea').value=text;paintRow(i);}
+
+function playSegment(i){
+  spk.pause();const s=ED[i];
+  stopAt=s.end;v.currentTime=s.start;
+  if(!$('studio').hidden&&$('dubAudio').src)$('dubAudio').currentTime=s.start;
+  v.play();
+}
+async function speakLine(i,btn){
+  const s=ED[i];if(!(s.hindi||'').trim()){rowMsg(i,'Pehle Hindi text likho.');return;}
+  v.pause();stopAt=null;
+  const old=btn.textContent;btn.textContent='...';btn.disabled=true;rowMsg(i,'');
+  try{
+    const r=await fetch('/api/speak',{method:'POST',headers:JH,body:JSON.stringify({text:s.hindi,gender:s.gender,style:s.style||'normal'})});
+    if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.detail||'Awaaz nahi bani');}
+    spk.src=URL.createObjectURL(await r.blob());await spk.play();
+  }catch(e){rowMsg(i,String(e.message||e));}
+  btn.textContent=old;btn.disabled=false;
+}
+async function callTranslate(texts,secs){
+  const r=await fetch('/api/translate',{method:'POST',headers:JH,body:JSON.stringify({texts,seconds:secs})});
+  if(!r.ok)throw new Error('Translate server error');
+  return r.json();
+}
+async function translateLine(i,btn){
+  const s=ED[i],old=btn.textContent;btn.textContent='...';btn.disabled=true;rowMsg(i,'');
+  try{
+    const res=await callTranslate([s.text],[s.end-s.start]);
+    if(res.failed.includes(0)){ED[i].tr_failed=true;paintRow(i);rowMsg(i,res.note||'Translation nahi hua. Internet check karo ya Settings me Claude API key daalo.');}
+    else setHindi(i,res.hindi[0]);
+  }catch(e){rowMsg(i,String(e.message||e));}
+  btn.textContent=old;btn.disabled=false;
+}
+async function translitLine(i,btn){
+  const s=ED[i],old=btn.textContent;btn.textContent='...';btn.disabled=true;
+  try{
+    const r=await fetch('/api/translit',{method:'POST',headers:JH,body:JSON.stringify({text:s.hindi})});
+    const j=await r.json();if(!r.ok)throw new Error(j.detail||'Nahi badla');
+    setHindi(i,j.text);
+  }catch(e){rowMsg(i,String(e.message||e));}
+  btn.textContent=old;btn.disabled=false;
 }
 function setAll(fn){ED.forEach((s,i)=>{s.gender=fn(s);paintRow(i);});}
 $('allM').onclick=()=>setAll(()=>'male');
 $('allF').onclick=()=>setAll(()=>'female');
 $('allA').onclick=()=>setAll(s=>s.auto_gender||'male');
+$('allT').onclick=async e=>{
+  if(!ED.length)return;
+  if(!confirm('Sab lines dobara translate hongi. Aapne jo Hindi khud likha/edit kiya hai wo badal jayega. Aage badhein?'))return;
+  const btn=e.currentTarget,old=btn.textContent;btn.textContent='Translate ho raha hai...';btn.disabled=true;
+  try{
+    const res=await callTranslate(ED.map(x=>x.text),ED.map(x=>x.end-x.start));
+    ED.forEach((s,i)=>{if(!res.failed.includes(i))setHindi(i,res.hindi[i]);else{ED[i].tr_failed=true;paintRow(i);}});
+    $('edInfo').textContent=res.failed.length?res.failed.length+' line translate nahi hui. '+(res.note||''):'Translate ho gaya ('+res.provider+')';
+  }catch(err){$('edInfo').textContent=String(err.message||err);}
+  btn.textContent=old;btn.disabled=false;
+};
 $('renderBtn').onclick=async()=>{
   if(!JOB||!ED.length)return;
-  v.pause();$('saved').textContent='';busyOn();$('msg').className='';$('msg').textContent='Awaaz dobara ban rahi hai...';$('fill').style.width='50%';setStage(50);
+  const bad=ED.filter(x=>(x.hindi||'').trim()&&!DEVRE.test(x.hindi)).length;
+  if(bad&&!confirm(bad+' line me Hindi (\u0926\u0947\u0935\u0928\u093E\u0917\u0930\u0940) nahi hai, unki awaaz English jaisi aayegi. Phir bhi dub banayein?'))return;
+  v.pause();spk.pause();stopAt=null;$('saved').textContent='';busyOn();$('msg').className='';$('msg').textContent='Awaaz ban rahi hai...';$('fill').style.width='50%';setStage(50);
   try{
     const r=await fetch('/api/render/'+JOB,{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({segments:ED.map(s=>({id:s.id,gender:s.gender,hindi:s.hindi||''}))})});
+      body:JSON.stringify({segments:ED.map(s=>({id:s.id,gender:s.gender,hindi:s.hindi||'',style:s.style||'normal'}))})});
     if(!r.ok)throw 0;
   }catch(e){return fail('Dub shuru nahi hua. Server check karo.');}
   window.scrollTo({top:0,behavior:'smooth'});
@@ -520,6 +618,7 @@ async function loadSettings(){
   try{
     const s=await(await fetch('/api/settings')).json();
     $('outDir').value=s.output_dir;$('workDir').value=s.work_dir;$('autoSave').checked=s.auto_save;
+    $('apiKey').placeholder=s.has_api_key?'Key saved hai (badalne ke liye nayi key daalo)':'sk-ant-...';
     $('tmpInfo').textContent='Abhi temp files: '+s.work_size_mb+' MB  |  Whisper model: '+s.models_mb+' MB (work folder me)';
   }catch(e){}
 }
@@ -545,6 +644,7 @@ $('workPick').onclick=()=>pickFolder('workDir','work_dir');
 $('outDir').addEventListener('change',()=>saveSetting({output_dir:$('outDir').value}));
 $('workDir').addEventListener('change',()=>saveSetting({work_dir:$('workDir').value}));
 $('autoSave').addEventListener('change',()=>saveSetting({auto_save:$('autoSave').checked}));
+$('apiSave').onclick=async()=>{await saveSetting({api_key:$('apiKey').value});$('apiKey').value='';};
 $('resetFolders').onclick=()=>saveSetting({output_dir:'',work_dir:''});
 $('cleanBtn').onclick=async()=>{
   if(!confirm('Purane sab temp files delete ho jayenge (chalta hua kaam nahi). Abhi khula preview bhi band ho jayega. Aage badhein?'))return;

@@ -11,6 +11,9 @@ Python **3.11** chahiye: https://www.python.org/downloads/release/python-3119/ (
 
 > `app/static/index.html` ko seedha double click karke mat kholo. Server ke bina upload aur logo kaam nahi karte.
 
+## Behtar translation aur natural awaaz
+Settings me **Claude API key** daalo to translation bolchal wali natural Hindi me hoti hai. Editor me har line ka **andaaz** (Normal/Josh/Dheere/Gussa) chun sakte ho, aur HINDI SUNO se dub banane se pehle sun sakte ho.
+
 ## Folder settings
 Console me **Folder settings** kholo: dub video ka save folder aur temp/kaam ki files ka folder CHUNO button se chuno (jaise D: ya E: drive). Settings `C:\Users\<naam>\.dark_audio_changer\settings.json` me yaad rehti hain.
 

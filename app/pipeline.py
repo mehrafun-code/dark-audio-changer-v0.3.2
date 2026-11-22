@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import statistics
 import threading
 import time
 from pathlib import Path
@@ -14,6 +15,14 @@ from .gender import detect_gender
 from .translate import translate_all
 
 _model = None
+
+# style -> (rate %, pitch Hz, gain dB). Awaaz ko "padhi hui line" se zyada natural banane ke liye
+STYLES = {
+    "normal": (0, 0, 0.0),
+    "josh": (12, 4, 3.0),     # excited / tez
+    "dheere": (-10, -2, -3.0),  # calm / soft
+    "gussa": (8, -2, 5.0),    # loud / gussa
+}
 
 
 def get_model():
@@ -39,11 +48,11 @@ def transcribe(wav):
         raise
 
 
-def tts(text: str, voice: str, out: Path, retries: int = 3):
+def tts(text: str, voice: str, out: Path, rate: str = "+0%", pitch: str = "+0Hz", retries: int = 3):
     last = None
     for i in range(retries):
         try:
-            asyncio.run(edge_tts.Communicate(text, voice).save(str(out)))
+            asyncio.run(edge_tts.Communicate(text, voice, rate=rate, pitch=pitch).save(str(out)))
             if out.exists() and out.stat().st_size > 0:
                 return
         except Exception as e:
@@ -56,6 +65,30 @@ def tts(text: str, voice: str, out: Path, retries: int = 3):
     raise RuntimeError(f"Hindi awaaz service se connect nahi hui{hint}: {last}")
 
 
+def voice_for(gender: str) -> str:
+    return config.VOICE_FEMALE if gender == "female" else config.VOICE_MALE
+
+
+def _fmt(n: int, unit: str) -> str:
+    return f"{n:+d}{unit}"
+
+
+def synth(text: str, gender: str, style: str, extra_rate: int, out: Path):
+    rate, pitch, _ = STYLES.get(style, STYLES["normal"])
+    tts(text, voice_for(gender), out, rate=_fmt(rate + extra_rate, "%"), pitch=_fmt(pitch, "Hz"))
+
+
+def speak_preview(text: str, gender: str, style: str) -> Path:
+    """Ek line ki Hindi awaaz (editor me sunne ke liye)."""
+    d = settings.work_dir() / "tmp"
+    d.mkdir(parents=True, exist_ok=True)
+    key = hashlib.md5(f"{gender}|{style}|{text}".encode("utf-8")).hexdigest()[:12]
+    out = d / f"speak_{key}.mp3"
+    if not out.exists() or out.stat().st_size == 0:
+        synth(text, gender, style, 0, out)
+    return out
+
+
 def _safe_preview(video: Path, out: Path):
     try:
         make_preview(video, out)
@@ -63,12 +96,9 @@ def _safe_preview(video: Path, out: Path):
         out.unlink(missing_ok=True)  # preview nahi bani: original video se chalega
 
 
-def voice_for(gender: str) -> str:
-    return config.VOICE_FEMALE if gender == "female" else config.VOICE_MALE
-
-
 def analyze(video: Path, workdir: Path, progress, gender_mode: str = "auto"):
-    """Stage 1: audio -> English text -> gender -> Hindi text. Awaaz abhi nahi banti."""
+    """Stage 1: audio -> English text -> gender/style -> Hindi text. Awaaz abhi nahi banti.
+    Return (segments, notes)."""
     workdir.mkdir(parents=True, exist_ok=True)
     wav = workdir / "audio.wav"
 
@@ -85,24 +115,61 @@ def analyze(video: Path, workdir: Path, progress, gender_mode: str = "auto"):
     if not segments:
         raise RuntimeError("Video me koi speech nahi mili.")
 
-    progress("Male/Female pehchan...", 35)
+    progress("Male/Female aur awaaz ka andaaz pehchan rahe hain...", 35)
+    audio = AudioSegment.from_wav(str(wav))
+    dbs = []
     for s in segments:
         if gender_mode in ("male", "female"):
             s["auto_gender"] = s["gender"] = gender_mode
         else:
             s["auto_gender"] = s["gender"] = detect_gender(wav, s["start"], s["end"])
+        part = audio[int(s["start"] * 1000):int(s["end"] * 1000)]
+        db = part.dBFS if len(part) > 0 else float("-inf")
+        s["loud_db"] = db if db != float("-inf") else -60.0
+        dbs.append(s["loud_db"])
+    med = statistics.median(dbs)
+    for s in segments:  # zyada loud = josh, bahut dheema = dheere
+        style = "normal"
+        if len(segments) >= 3:
+            if s["loud_db"] >= med + 3:
+                style = "josh"
+            elif s["loud_db"] <= med - 4:
+                style = "dheere"
+        s["auto_style"] = s["style"] = style
 
     progress("Hindi translation...", 45)
-    hindi = translate_all([s["text"] for s in segments])
-    for s, h in zip(segments, hindi):
+    res = translate_all([s["text"] for s in segments], [s["end"] - s["start"] for s in segments])
+    failed = set(res["failed"])
+    for i, (s, h) in enumerate(zip(segments, res["hindi"])):
         s["hindi"] = h
+        s["tr_failed"] = i in failed
+    notes = [res["note"]] if res["note"] else []
+
     progress("Preview video taiyar ho rahi hai...", 47)
     prev_thread.join()
-    return segments
+    return segments, notes
+
+
+def _clip_path(text: str, gender: str, style: str, extra: int, workdir: Path) -> Path:
+    key = hashlib.md5(f"{voice_for(gender)}|{style}|{extra}|{text}".encode("utf-8")).hexdigest()[:12]
+    raw = workdir / f"tts_{key}.mp3"
+    wavp = workdir / f"tts_{key}.wav"
+    if not wavp.exists() or wavp.stat().st_size == 0:  # pehle bani hui awaaz dobara use hogi
+        if not raw.exists() or raw.stat().st_size == 0:
+            synth(text, gender, style, extra, raw)
+        to_wav(raw, wavp)
+    return wavp
+
+
+def _level(clip: AudioSegment, style_gain: float) -> AudioSegment:
+    """Har line ki awaaz barabar loudness par, style ke hisaab se thodi upar/neeche."""
+    if clip.dBFS != float("-inf"):
+        clip = clip.apply_gain(max(min(-18.0 - clip.dBFS, 12.0), -12.0) + style_gain)
+    return clip.fade_in(8).fade_out(25)
 
 
 def render(video: Path, workdir: Path, segments: list, progress):
-    """Stage 2: Hindi text + gender se awaaz banao, mix karo, video me jodo."""
+    """Stage 2: Hindi text + gender + style se awaaz banao, mix karo, video me jodo."""
     wav = workdir / "audio.wav"
     total_ms = int(AudioSegment.from_wav(str(wav)).duration_seconds * 1000) + 1000
     mix = AudioSegment.silent(duration=total_ms, frame_rate=24000).set_channels(1)
@@ -113,24 +180,28 @@ def render(video: Path, workdir: Path, segments: list, progress):
         text = (s.get("hindi") or "").strip()
         if not text:
             continue
-        voice = voice_for(s.get("gender", "male"))
-        key = hashlib.md5(f"{voice}|{text}".encode("utf-8")).hexdigest()[:12]
-        raw = workdir / f"tts_{key}.mp3"
-        wavp = workdir / f"tts_{key}.wav"
-        if not wavp.exists() or wavp.stat().st_size == 0:  # pehle bani hui awaaz dobara use hogi
-            if not raw.exists() or raw.stat().st_size == 0:
-                tts(text, voice, raw)
-            to_wav(raw, wavp)
+        gender = s.get("gender", "male")
+        style = s.get("style", "normal")
+        if style not in STYLES:
+            style = "normal"
+
+        wavp = _clip_path(text, gender, style, 0, workdir)
         clip = AudioSegment.from_wav(str(wavp))
 
         nxt = segments[i + 1]["start"] if i + 1 < n else s["end"] + 3
         slot = max(nxt - s["start"] - 0.1, 0.5) * 1000
         if len(clip) > slot:
-            tempo = min(len(clip) / slot, config.MAX_SPEEDUP)
-            fast = workdir / f"tts_{key}_{tempo:.2f}.wav"
-            if not fast.exists():
-                speed_up(wavp, fast, tempo)
-            clip = AudioSegment.from_wav(str(fast))
+            # pehle awaaz ki speed khud badhao (natural), phir bhi lambi ho to atempo
+            extra = min(int((len(clip) / slot - 1) * 100) + 3, 40)
+            wavp = _clip_path(text, gender, style, extra, workdir)
+            clip = AudioSegment.from_wav(str(wavp))
+            if len(clip) > slot:
+                tempo = min(len(clip) / slot, config.MAX_SPEEDUP)
+                fast = workdir / f"{wavp.stem}_t{tempo:.2f}.wav"
+                if not fast.exists():
+                    speed_up(wavp, fast, tempo)
+                clip = AudioSegment.from_wav(str(fast))
+        clip = _level(clip, STYLES[style][2])
         mix = mix.overlay(clip, position=int(s["start"] * 1000))
 
     progress("Video me merge kar rahe hain...", 93)

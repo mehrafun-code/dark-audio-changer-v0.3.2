@@ -47,6 +47,10 @@ def models_dir() -> Path:
     return work_dir() / "models"
 
 
+def api_key() -> str:
+    return (_load().get("api_key") or "").strip()
+
+
 def auto_save() -> bool:
     return bool(_load().get("auto_save", False))
 
@@ -72,7 +76,7 @@ def _check_writable(p: Path) -> Path:
     return p
 
 
-def update(out=None, work=None, auto=None):
+def update(out=None, work=None, auto=None, api_key=None):
     d = _load()
     if out is not None:
         if out.strip():
@@ -86,6 +90,11 @@ def update(out=None, work=None, auto=None):
             d.pop("work_dir", None)
     if auto is not None:
         d["auto_save"] = bool(auto)
+    if api_key is not None:
+        if api_key.strip():
+            d["api_key"] = api_key.strip()
+        else:
+            d.pop("api_key", None)
     _save(d)
     apply_temp()
 
@@ -119,6 +128,7 @@ def snapshot() -> dict:
         "output_dir": str(output_dir()),
         "work_dir": str(work_dir()),
         "auto_save": auto_save(),
+        "has_api_key": bool(api_key() or config.ANTHROPIC_API_KEY),
         "default_output": str(default_output()),
         "default_work": str(default_work()),
         "work_size_mb": round(_jobs_size() / 1048576),

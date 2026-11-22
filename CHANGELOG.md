@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 (build 10)
+- **Translation theek**: ab Claude (agar API key ho) -> Google -> doosra Google -> MyMemory, 4 tareeke. Sirf wahi result maana jata hai jisme Hindi (devanagari) ho. Jo line translate na ho wo laal warning ke saath dikhti hai (pehle chup-chap English reh jati thi)
+- Settings me **Claude API key** (optional) - slang ('bro', 'bruh') ka natural bolchal wali Hindi me translation, timing ke hisaab se chhoti/lambi
+- **Har line ke aage Play (original video me sirf wahi line chalti hai)**, **HINDI SUNO** (us line ki dub awaaz turant sunao), **TRANSLATE** (sirf us line ko dobara translate), **HINGLISH -> देवनागरी**
+- Hindi text editable, video par **Hindi caption** aur transcript me Hindi dikhta hai
+- **Awaaz zyada natural**: har line ka andaaz (Normal / Josh / Dheere / Gussa), original awaaz ki loudness se auto-suggest, lambi line ke liye awaaz ki speed natural tareeke se badhti hai, sab lines barabar loudness par
+- "Sab line Hindi me translate karo" button, aur dub se pehle English-jaisi lines ki warning
+
 ## 0.3.6 (build 9)
 - Fix: `[WinError 2] The system cannot find the file specified` (Hindi awaaz banate waqt). pydub ko `ffprobe` chahiye tha jo exe me nahi tha. Ab awaaz seedha ffmpeg se wav me badalti hai (ffprobe ki zaroorat nahi) aur workflow `ffprobe.exe` bhi saath rakhta hai
 - Workflow ek hi `main.yml` me (Linux check + Windows build)

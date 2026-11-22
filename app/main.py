@@ -14,7 +14,8 @@ from pydantic import BaseModel
 
 from . import config, settings
 from .media import parse_range, wav_peaks
-from .pipeline import analyze, render
+from .pipeline import STYLES, analyze, render, speak_preview
+from .translate import translate_all, translit
 
 app = FastAPI(title="Dark Audio Changer", version=config.VERSION)
 JOBS: dict[str, dict] = {}
@@ -131,7 +132,7 @@ def _analyze_work(job_id: str, video: Path, gender_mode: str, review: bool):
     j = JOBS[job_id]
     try:
         settings.apply_temp()
-        j["segments"] = analyze(video, _wd(j), _progress(job_id), gender_mode)
+        j["segments"], j["notes"] = analyze(video, _wd(j), _progress(job_id), gender_mode)
     except Exception as e:
         j.update(status="error", message=str(e))
         return
@@ -146,6 +147,7 @@ class SegEdit(BaseModel):
     id: int
     gender: str
     hindi: str
+    style: str = "normal"
 
 
 class RenderBody(BaseModel):
@@ -156,11 +158,53 @@ class SettingsBody(BaseModel):
     output_dir: Optional[str] = None
     work_dir: Optional[str] = None
     auto_save: Optional[bool] = None
+    api_key: Optional[str] = None
 
 
 class PickBody(BaseModel):
     initial: Optional[str] = None
     title: Optional[str] = None
+
+
+class SpeakBody(BaseModel):
+    text: str
+    gender: str = "male"
+    style: str = "normal"
+
+
+class TranslateBody(BaseModel):
+    texts: list[str]
+    seconds: Optional[list[float]] = None
+
+
+class TranslitBody(BaseModel):
+    text: str
+
+
+@app.post("/api/speak")
+def speak(b: SpeakBody):
+    """Ek line ki Hindi awaaz sunne ke liye (editor)."""
+    if not b.text.strip():
+        raise HTTPException(400, "Pehle Hindi text likho")
+    try:
+        path = speak_preview(b.text.strip(), "female" if b.gender == "female" else "male",
+                             b.style if b.style in STYLES else "normal")
+    except Exception as e:
+        raise HTTPException(502, str(e))
+    return FileResponse(path, media_type="audio/mpeg")
+
+
+@app.post("/api/translate")
+def translate(b: TranslateBody):
+    return translate_all(b.texts, b.seconds)
+
+
+@app.post("/api/translit")
+def translit_api(b: TranslitBody):
+    try:
+        return {"text": translit(b.text)}
+    except Exception as e:
+        raise HTTPException(502, f"Devanagari me nahi badal paye: {e}")
 
 
 @app.get("/api/version")
@@ -176,7 +220,7 @@ def get_settings():
 @app.post("/api/settings")
 def set_settings(b: SettingsBody):
     try:
-        settings.update(b.output_dir, b.work_dir, b.auto_save)
+        settings.update(b.output_dir, b.work_dir, b.auto_save, b.api_key)
     except ValueError as e:
         raise HTTPException(400, str(e))
     return settings.snapshot()
@@ -230,6 +274,8 @@ def rerender(job_id: str, body: RenderBody, bg: BackgroundTasks):
         if e:
             seg["gender"] = "female" if e.gender == "female" else "male"
             seg["hindi"] = e.hindi
+            seg["style"] = e.style if e.style in STYLES else "normal"
+            seg["tr_failed"] = False
     j.update(status="processing", progress=50, message="Awaaz ban rahi hai...")
     bg.add_task(_render_work, job_id)
     return {"ok": True}
